@@ -51,12 +51,12 @@
 .cv-flow-logo .logo-icon {
   width: 2rem;
   height: 2rem;
-  background: #1c1917;
+  background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
   border-radius: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #ea580c;
   font-weight: 700;
   font-size: 0.875rem;
 }
@@ -404,6 +404,24 @@
   color: #f97316;
 }
 
+/* Error Banner */
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.75rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.error-banner svg {
+  flex-shrink: 0;
+}
+
 /* URL Input */
 .url-container {
   background: white;
@@ -533,6 +551,15 @@
 .loading-step-done {
   background: #f0fdf4;
   color: #16a34a;
+}
+
+.loading-step-active {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.loading-step-active .loading-step-dot {
+  background: #d97706;
 }
 
 .loading-step-icon {

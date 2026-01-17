@@ -79,7 +79,7 @@ const Header = ({ onStartCV }: { onStartCV: () => void }) => {
     <header className={`header ${isScrolled ? 'header-scrolled' : ''}`}>
       <div className="header-container">
         <div className="logo">
-          <div className="logo-icon">H.</div>
+          <div className="logo-icon">H</div>
           <span className="logo-text">HackYourCV</span>
         </div>
 
@@ -419,7 +419,7 @@ function App() {
         <footer className="footer">
           <div className="footer-container">
             <div className="footer-logo">
-              <div className="logo-icon-small">H.</div>
+              <div className="logo-icon-small">H</div>
               <span>HackYourCV</span>
             </div>
             <p className="footer-copy">&copy; {new Date().getFullYear()} - Fait avec soin pour les candidats ignores.</p>

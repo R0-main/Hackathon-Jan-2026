@@ -95,12 +95,12 @@ body {
 .logo-icon {
   width: 2.25rem;
   height: 2.25rem;
-  background: #1c1917;
+  background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
   border-radius: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #ea580c;
   font-weight: 700;
   letter-spacing: -0.05em;
   box-shadow: 0 10px 15px -3px rgba(28, 25, 23, 0.2);
@@ -1261,12 +1261,12 @@ body {
 .logo-icon-small {
   width: 2rem;
   height: 2rem;
-  background: #1c1917;
+  background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
   border-radius: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #ea580c;
   font-size: 0.75rem;
   font-weight: 700;
 }

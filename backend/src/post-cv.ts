@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import OpenAI from 'openai';
 import { z } from 'zod';
-import { PDFParse } from 'pdf-parse';
+import pdfParse from 'pdf-parse';
 import { ModernATS_CVGenerator } from './CV/cv-creator';
 import { convertPdfToImages } from './utils/pdf-to-image';
 import path from 'path';
@@ -59,8 +59,7 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
 
   try {
     // 1. Extract text from PDF
-    const parser = new PDFParse({ data: req.file.buffer });
-    const pdfData = await parser.getText();
+    const pdfData = await pdfParse(req.file.buffer);
     const textContent = pdfData.text;
 
     // Convert PDF to images

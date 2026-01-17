@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -234,7 +234,8 @@ const JobOfferStep = ({
   jobUrl,
   setJobUrl,
   onNext,
-  onBack
+  onBack,
+  error
 }: {
   jobOffer: string;
   setJobOffer: (s: string) => void;
@@ -242,6 +243,7 @@ const JobOfferStep = ({
   setJobUrl: (s: string) => void;
   onNext: () => void;
   onBack: () => void;
+  error?: string | null;
 }) => {
   const [inputMode, setInputMode] = useState<'text' | 'url'>('text');
 
@@ -254,6 +256,13 @@ const JobOfferStep = ({
         <h1>L'offre qui t'interesse</h1>
         <p>Colle le texte de l'annonce ou son URL pour qu'on adapte ton CV.</p>
       </div>
+
+      {error && (
+        <div className="error-banner">
+          <X size={18} />
+          <span>{error}</span>
+        </div>
+      )}
 
       <div className="input-mode-toggle">
         <button
@@ -330,12 +339,22 @@ Exemple:
 
 // Step 3: Loading
 const LoadingStep = () => {
+  const [currentStep, setCurrentStep] = useState(0);
+
   const steps = [
-    { label: 'Analyse de ton CV', done: true },
-    { label: 'Extraction des mots-cles de l\'offre', done: true },
-    { label: 'Optimisation ATS en cours', done: false },
-    { label: 'Generation du nouveau CV', done: false },
+    'Analyse de ton CV',
+    'Optimisation ATS en cours',
+    'Generation du nouveau CV',
   ];
+
+  // Progression automatique des étapes
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setCurrentStep(1), 3000),  // Après 3s -> étape 2
+      setTimeout(() => setCurrentStep(2), 8000),  // Après 8s -> étape 3
+    ];
+    return () => timers.forEach(t => clearTimeout(t));
+  }, []);
 
   return (
     <div className="step-container loading-container">
@@ -349,22 +368,25 @@ const LoadingStep = () => {
 
       <div className="loading-content">
         <h1>Generation en cours...</h1>
-        <p>Notre IA analyse ton CV et l'adapte aux exigences de l'offre.</p>
+        <p>Notre IA analyse ton CV et l'optimise pour les systemes ATS.</p>
 
         <div className="loading-steps">
-          {steps.map((step, index) => (
-            <div key={index} className={`loading-step ${step.done ? 'loading-step-done' : ''}`}>
+          {steps.map((label, index) => (
+            <div
+              key={index}
+              className={`loading-step ${index < currentStep ? 'loading-step-done' : ''} ${index === currentStep ? 'loading-step-active' : ''}`}
+            >
               <div className="loading-step-icon">
-                {step.done ? <Check size={14} /> : <div className="loading-step-dot"></div>}
+                {index < currentStep ? <Check size={14} /> : <div className="loading-step-dot"></div>}
               </div>
-              <span>{step.label}</span>
+              <span>{label}</span>
             </div>
           ))}
         </div>
       </div>
 
       <p className="loading-disclaimer">
-        Cela prend generalement moins de 30 secondes.
+        Cela prend generalement 10 a 20 secondes.
       </p>
     </div>
   );
@@ -587,6 +609,9 @@ const ResultStep = ({
   );
 };
 
+// API URL - en dev on utilise localhost, en prod l'URL du backend
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 // Main CVFlow Component
 export default function CVFlow({ onBack }: CVFlowProps) {
   const [step, setStep] = useState<Step>('upload');
@@ -594,22 +619,43 @@ export default function CVFlow({ onBack }: CVFlowProps) {
   const [jobOffer, setJobOffer] = useState('');
   const [jobUrl, setJobUrl] = useState('');
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const goToJobOffer = () => setStep('job-offer');
   const goToUpload = () => setStep('upload');
 
-  const startGeneration = () => {
+  const startGeneration = async () => {
+    if (!cvFile) return;
+
     setStep('loading');
-    // Simulate API call - in production, this would call the backend
-    // and receive the generated PDF URL
-    setTimeout(() => {
-      // For demo: use the uploaded CV as preview (will be replaced by backend-generated PDF)
-      if (cvFile) {
-        const url = URL.createObjectURL(cvFile);
-        setGeneratedPdfUrl(url);
+    setError(null);
+
+    try {
+      // Créer le FormData avec le fichier CV
+      const formData = new FormData();
+      formData.append('cv', cvFile);
+
+      // Appel réel au backend
+      const response = await fetch(`${API_URL}/api/cv`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Erreur lors de la génération du CV');
       }
+
+      // Récupérer le PDF généré comme blob
+      const pdfBlob = await response.blob();
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      setGeneratedPdfUrl(pdfUrl);
       setStep('preview');
-    }, 4000);
+    } catch (err) {
+      console.error('Erreur:', err);
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue');
+      setStep('job-offer'); // Retour à l'étape précédente en cas d'erreur
+    }
   };
 
   const goToPreview = () => setStep('preview');
@@ -638,7 +684,7 @@ export default function CVFlow({ onBack }: CVFlowProps) {
           <span>Retour</span>
         </button>
         <div className="cv-flow-logo">
-          <div className="logo-icon">H.</div>
+          <div className="logo-icon">H</div>
           <span>HackYourCV</span>
         </div>
         <div className="header-spacer"></div>
@@ -659,6 +705,7 @@ export default function CVFlow({ onBack }: CVFlowProps) {
             jobUrl={jobUrl}
             setJobUrl={setJobUrl}
             onNext={startGeneration}
+            error={error}
             onBack={goToUpload}
           />
         )}
