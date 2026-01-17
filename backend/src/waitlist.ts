@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import db from './db';
+import sql from './db';
 
 const router = Router();
 
@@ -21,17 +21,19 @@ router.post('/', async (req: Request, res: Response) => {
 
   try {
     // Check if email already exists
-    const existing = db.prepare('SELECT id FROM waitlist WHERE email = ?').get(email);
-    if (existing) {
+    const existing = await sql`SELECT id FROM waitlist WHERE email = ${email}`;
+    if (existing.length > 0) {
       res.status(400).json({ detail: 'Email already registered' });
       return;
     }
 
-    // Insert new email
-    const result = db.prepare('INSERT INTO waitlist (email) VALUES (?)').run(email);
+    // Insert new email and get the id
+    const result = await sql`INSERT INTO waitlist (email) VALUES (${email}) RETURNING id`;
+    const insertedId = result[0].id;
 
     // Get position (count of entries up to and including this one)
-    const position = db.prepare('SELECT COUNT(*) as count FROM waitlist WHERE id <= ?').get(result.lastInsertRowid) as { count: number };
+    const positionResult = await sql`SELECT COUNT(*) as count FROM waitlist WHERE id <= ${insertedId}`;
+    const position = Number(positionResult[0].count);
 
     // Send to Discord Webhook
     const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
@@ -54,7 +56,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     res.status(201).json({
       message: 'Successfully joined the waitlist!',
-      position: position.count
+      position: position
     });
   } catch (error) {
     console.error('Waitlist error:', error);
@@ -63,10 +65,10 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // GET /api/waitlist/count - Get waitlist count
-router.get('/count', (req: Request, res: Response) => {
+router.get('/count', async (req: Request, res: Response) => {
   try {
-    const result = db.prepare('SELECT COUNT(*) as count FROM waitlist').get() as { count: number };
-    res.json({ count: result.count });
+    const result = await sql`SELECT COUNT(*) as count FROM waitlist`;
+    res.json({ count: Number(result[0].count) });
   } catch (error) {
     console.error('Waitlist count error:', error);
     res.status(500).json({ detail: 'Internal server error' });
