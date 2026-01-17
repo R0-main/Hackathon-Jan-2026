@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import postCvRouter from './post-cv';
 
 dotenv.config();
 
@@ -9,6 +10,8 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+app.use('/api/cv', postCvRouter);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Hello from Express Backend!');
