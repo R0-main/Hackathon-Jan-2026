@@ -1,9 +1,10 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import postCvRouter from './post-cv';
 
 dotenv.config();
+
+import postCvRouter from './post-cv';
 
 const app = express();
 const port = process.env.PORT || 3000;
