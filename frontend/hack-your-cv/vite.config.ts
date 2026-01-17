@@ -5,6 +5,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: ['localhost', 'hackathon-jan-2026-frontend.onrender.com']
+    allowedHosts: ['localhost', 'hackathon-jan-2026-frontend.onrender.com', 'hackyourcv.fr']
   }
 })
