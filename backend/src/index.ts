@@ -6,7 +6,7 @@ dotenv.config();
 import { initDb } from './db';
 import postCvRouter from './post-cv';
 import waitlistRouter from './waitlist';
-import jobRouter from './linkedin/job-route';
+import jobRouter from './routes/job-route';
 
 const app = express();
 const port = process.env.PORT || 3000;

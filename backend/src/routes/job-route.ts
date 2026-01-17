@@ -1,42 +1,37 @@
-
+// src/routes/job-route.ts
 import { Router, Request, Response } from 'express';
-import { scrapeLinkedInJob, jobToText } from './job-scraper';
+import { getScraperForUrl } from '../scrapers';
 
 const router = Router();
 
-// Route pour scraper une offre d'emploi LinkedIn
 router.post('/scrape-job', async (req: Request, res: Response) => {
     try {
         const { jobUrl } = req.body;
-        
+
         if (!jobUrl) {
             return res.status(400).json({ 
                 success: false,
                 error: 'Job URL is required' 
             });
         }
-        
-        if (!jobUrl.includes('linkedin.com/jobs')) {
-            return res.status(400).json({ 
-                success: false,
-                error: 'Invalid LinkedIn job URL' 
-            });
-        }
-        
-        console.log('🔍 Scraping LinkedIn job:', jobUrl);
-        const job = await scrapeLinkedInJob(jobUrl);
-        
+
+        console.log('🔍 Scraping job:', jobUrl);
+
+        // Détection automatique de la plateforme
+        const scraper = getScraperForUrl(jobUrl);
+        const job = await scraper.scrape(jobUrl);
+
         return res.json({
             success: true,
             data: job,
-            message: 'Job posting scraped successfully'
+            message: `Job scraped from ${job.platform}`
         });
-        
+
     } catch (error) {
         console.error('❌ Error:', error);
         return res.status(500).json({ 
             success: false,
-            error: 'Failed to scrape LinkedIn job posting',
+            error: 'Failed to scrape job posting',
             details: error instanceof Error ? error.message : 'Unknown error'
         });
     }

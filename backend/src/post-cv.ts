@@ -5,7 +5,7 @@ import { z } from 'zod';
 import pdfParse from 'pdf-parse';
 import { ModernATS_CVGenerator } from './CV/cv-creator';
 import { convertPdfToImages } from './utils/pdf-to-image';
-import { scrapeLinkedInJob, jobToText } from './linkedin/job-scraper';
+import { getScraperForUrl, jobToText } from './scrapers';
 import path from 'path';
 import fs from 'fs';
 
@@ -131,29 +131,30 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
 
   try {
     // If job URL is provided, scrape it
-    if (jobUrl && jobUrl.includes('linkedin.com/jobs')) {
-      console.log('🔍 Scraping job posting from:', jobUrl);
-      try {
-        const job = await scrapeLinkedInJob(jobUrl);
-        jobDescription = jobToText(job);
-        jobInfo = job;
-        console.log('✅ Job posting integrated:', job.title);
-      } catch (error) {
-        console.error('⚠️ Failed to scrape job, continuing without it:', error);
-      }
-    } else if (jobDescriptionText && jobDescriptionText.trim()) {
-      // Use raw job description text provided by user
-      console.log('📝 Using provided job description text');
-      jobDescription = jobDescriptionText.trim();
-      // Extract skills from the text for better optimization
-      const extractedSkills = extractSkillsFromText(jobDescription);
-      jobInfo = {
-        title: 'Position',
-        company: 'Company',
-        skills: extractedSkills,
-      };
-      console.log('✅ Job description integrated, found skills:', extractedSkills.length);
+  if (jobUrl && jobUrl.trim()) {
+    console.log('🔍 Scraping job posting from:', jobUrl);
+    try {
+      const scraper = getScraperForUrl(jobUrl);
+      const job = await scraper.scrape(jobUrl);
+      jobDescription = jobToText(job);
+      jobInfo = job;
+      console.log(`✅ Job posting integrated: ${job.title} (${job.platform})`);
+    } catch (error) {
+      console.error('⚠️ Failed to scrape job, continuing without it:', error);
     }
+  } else if (jobDescriptionText && jobDescriptionText.trim()) {
+    // Use raw job description text provided by user
+    console.log('📝 Using provided job description text');
+    jobDescription = jobDescriptionText.trim();
+    // Extract skills from the text for better optimization
+    const extractedSkills = extractSkillsFromText(jobDescription);
+    jobInfo = {
+      title: 'Position',
+      company: 'Company',
+      skills: extractedSkills,
+    };
+    console.log('✅ Job description integrated, found skills:', extractedSkills.length);
+  }
 
     // 1. Extract text from PDF
     console.log('📄 Extracting text from CV...');
