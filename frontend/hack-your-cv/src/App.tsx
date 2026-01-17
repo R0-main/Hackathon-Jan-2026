@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { joinWaitlist, getWaitlistCount } from './api';
+import CVFlow from './CVFlow';
 import './App.css';
 
 // Icons as simple SVG components
@@ -57,8 +57,15 @@ const ChevronUp = ({ size = 18, className = '' }: { size?: number; className?: s
   </svg>
 );
 
+const ArrowRight = ({ size = 20, className = '' }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="5" y1="12" x2="19" y2="12"/>
+    <polyline points="12 5 19 12 12 19"/>
+  </svg>
+);
+
 // Header Component
-const Header = () => {
+const Header = ({ onStartCV }: { onStartCV: () => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -67,11 +74,6 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const scrollToWaitlist = () => {
-    document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth' });
-    setMobileMenuOpen(false);
-  };
 
   return (
     <header className={`header ${isScrolled ? 'header-scrolled' : ''}`}>
@@ -85,8 +87,8 @@ const Header = () => {
           <a href="#preuve">Avant / Apres</a>
           <a href="#pour-qui">Pour qui ?</a>
           <a href="#faq">FAQ</a>
-          <button onClick={scrollToWaitlist} className="btn-primary">
-            Rejoindre la waitlist
+          <button onClick={onStartCV} className="btn-primary">
+            Optimiser mon CV
           </button>
         </nav>
 
@@ -104,8 +106,8 @@ const Header = () => {
           <a href="#preuve" onClick={() => setMobileMenuOpen(false)}>Avant / Apres</a>
           <a href="#pour-qui" onClick={() => setMobileMenuOpen(false)}>Pour qui ?</a>
           <a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
-          <button onClick={scrollToWaitlist} className="btn-primary">
-            Rejoindre la waitlist
+          <button onClick={onStartCV} className="btn-primary">
+            Optimiser mon CV
           </button>
         </div>
       )}
@@ -113,97 +115,26 @@ const Header = () => {
   );
 };
 
-// Waitlist Component
-const WaitlistForm = () => {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [position, setPosition] = useState<number | null>(null);
-  const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    getWaitlistCount()
-      .then(data => setWaitlistCount(data.count))
-      .catch(() => setWaitlistCount(null));
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    setStatus('loading');
-    setErrorMessage('');
-
-    try {
-      const result = await joinWaitlist(email);
-      setPosition(result.position);
-      setStatus('success');
-      // Refresh count after successful signup
-      getWaitlistCount()
-        .then(data => setWaitlistCount(data.count))
-        .catch(() => {});
-    } catch (err) {
-      setStatus('error');
-      setErrorMessage(err instanceof Error ? err.message : 'Une erreur est survenue');
-    }
-  };
-
-  if (status === 'success') {
-    return (
-      <div id="waitlist" className="waitlist-card">
-        <div className="waitlist-success">
-          <div className="success-check">
-            <Check size={28} />
-          </div>
-          <h3>Place reservee !</h3>
-          {position && (
-            <p className="success-position">
-              Tu es <strong>#{position}</strong> sur la liste
-            </p>
-          )}
-          <p className="success-text">
-            On te contacte des l'ouverture de la beta.
-          </p>
+// Hero CTA Component
+const HeroCTA = ({ onStartCV }: { onStartCV: () => void }) => {
+  return (
+    <div className="hero-cta-card">
+      <div className="hero-cta-content">
+        <div className="hero-cta-icon">
+          <Zap size={28} />
+        </div>
+        <h3>Pret a optimiser ton CV ?</h3>
+        <p>Upload ton CV, colle une offre, telecharge ta version optimisee.</p>
+        <button onClick={onStartCV} className="hero-cta-button">
+          Commencer maintenant
+          <ArrowRight size={18} />
+        </button>
+        <div className="hero-cta-features">
+          <span><CheckCircle size={14} /> Gratuit</span>
+          <span><CheckCircle size={14} /> 2 minutes</span>
+          <span><CheckCircle size={14} /> Sans inscription</span>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div id="waitlist" className="waitlist-card">
-      <div className="waitlist-header">
-        <Zap size={20} className="waitlist-zap" />
-        <h3>Rejoins la Beta</h3>
-      </div>
-
-      <p className="waitlist-desc">
-        Acces gratuit pour les premiers inscrits.
-      </p>
-
-      <form onSubmit={handleSubmit} className="waitlist-form">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="ton@email.com"
-          required
-          disabled={status === 'loading'}
-        />
-        <button type="submit" disabled={status === 'loading'}>
-          {status === 'loading' ? 'Envoi...' : "S'inscrire"}
-        </button>
-      </form>
-
-      {status === 'error' && (
-        <p className="waitlist-error">{errorMessage}</p>
-      )}
-
-      {waitlistCount !== null && waitlistCount > 0 && (
-        <p className="waitlist-counter">
-          <ShieldCheck size={12} />
-          <span>{waitlistCount} inscrits</span>
-        </p>
-      )}
     </div>
   );
 };
@@ -329,6 +260,14 @@ const FAQItem = ({ question, answer }: { question: string; answer: string }) => 
 
 // Main App Component
 function App() {
+  const [showCVFlow, setShowCVFlow] = useState(false);
+
+  if (showCVFlow) {
+    return <CVFlow onBack={() => setShowCVFlow(false)} />;
+  }
+
+  const startCV = () => setShowCVFlow(true);
+
   return (
     <div className="app">
       <div className="bg-ambience">
@@ -337,16 +276,16 @@ function App() {
       </div>
 
       <div className="content-wrapper">
-        <Header />
+        <Header onStartCV={startCV} />
 
         {/* Hero Section */}
         <section className="hero-section">
           <div className="hero-container">
             <div className="hero-content">
               <div className="hero-text">
-                <div className="beta-badge animate-fadeIn">
-                  <div className="beta-dot"></div>
-                  <span>Beta live ce week-end</span>
+                <div className="live-badge animate-fadeIn">
+                  <div className="live-dot"></div>
+                  <span>Disponible maintenant</span>
                 </div>
 
                 <h1 className="hero-title">
@@ -364,9 +303,9 @@ function App() {
                 </div>
               </div>
 
-              <div className="hero-waitlist-wrapper">
+              <div className="hero-cta-wrapper">
                 <div className="demo-blob"></div>
-                <WaitlistForm />
+                <HeroCTA onStartCV={startCV} />
               </div>
             </div>
           </div>
@@ -458,18 +397,19 @@ function App() {
               />
               <FAQItem
                 question="C'est gratuit ?"
-                answer="L'acces Beta sera gratuit pour ton premier CV optimise. Inscris-toi pour recevoir ton invitation."
+                answer="Oui, l'outil est entierement gratuit. Uploade ton CV et optimise-le autant de fois que tu veux."
               />
             </div>
 
             <div className="final-cta">
               <h2>Arrete de te faire filtrer.</h2>
-              <p>Rejoins la liste d'attente. Premier arrive, premier servi.</p>
+              <p>Optimise ton CV maintenant, gratuitement.</p>
               <button
-                onClick={() => document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={startCV}
                 className="btn-final-cta"
               >
-                Rejoindre la waitlist
+                Optimiser mon CV
+                <ArrowRight size={20} />
               </button>
             </div>
           </div>
