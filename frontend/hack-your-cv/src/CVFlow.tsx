@@ -631,9 +631,16 @@ export default function CVFlow({ onBack }: CVFlowProps) {
     setError(null);
 
     try {
-      // Créer le FormData avec le fichier CV
+      // Créer le FormData avec le fichier CV et l'URL de l'offre
       const formData = new FormData();
       formData.append('cv', cvFile);
+
+      // Ajouter l'URL ou le texte de l'offre si disponible (pour optimisation ciblée)
+      if (jobUrl && jobUrl.trim()) {
+        formData.append('jobUrl', jobUrl.trim());
+      } else if (jobOffer && jobOffer.trim()) {
+        formData.append('jobDescription', jobOffer.trim());
+      }
 
       // Appel réel au backend
       const response = await fetch(`${API_URL}/api/cv`, {

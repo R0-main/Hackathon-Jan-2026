@@ -1,6 +1,14 @@
 // backend/src/linkedin/job-scraper.ts
 
-import { lightpanda } from '@lightpanda/browser';
+// Dynamic import pour éviter les problèmes ESM
+let lightpandaModule: any = null;
+
+async function getLightpanda() {
+    if (!lightpandaModule) {
+        lightpandaModule = await import('@lightpanda/browser');
+    }
+    return lightpandaModule.lightpanda;
+}
 
 export interface LinkedInJob {
     title: string;
@@ -21,18 +29,20 @@ export async function scrapeLinkedInJob(jobUrl: string): Promise<LinkedInJob> {
     
     try {
         console.log('🐼 Starting LightPanda...');
-        
+
+        const lightpanda = await getLightpanda();
+
         // Démarrer le serveur LightPanda
         const proc = await lightpanda.serve({
             host: '127.0.0.1',
             port: 9222,
         });
-        
+
         // Attendre que le serveur démarre
         await new Promise(resolve => setTimeout(resolve, 2000));
-        
+
         console.log('📄 Fetching job page...');
-        
+
         // Fetch la page avec LightPanda (juste l'URL, pas d'options)
         const html = await lightpanda.fetch(jobUrl);
         
@@ -58,8 +68,7 @@ export async function scrapeLinkedInJob(jobUrl: string): Promise<LinkedInJob> {
         
     } catch (error) {
         console.error('❌ Error scraping with LightPanda:', error);
-        console.warn('⚠️ Using demo job data for testing');
-        return getDemoJobData();
+        throw error;
     }
 }
 
@@ -129,33 +138,6 @@ function extractSkills(text: string): string[] {
     }
     
     return [...new Set(foundSkills)];
-}
-
-function getDemoJobData(): LinkedInJob {
-    return {
-        title: "Senior Full Stack Developer",
-        company: "TechCorp Innovation",
-        location: "Paris, France (Hybrid)",
-        description: `We are looking for a Senior Full Stack Developer to join our team.
-
-Requirements:
-- 5+ years of experience in web development
-- Strong proficiency in React and Node.js
-- Experience with TypeScript and modern JavaScript
-- Knowledge of Docker and CI/CD pipelines
-- Experience with PostgreSQL or MongoDB
-- Excellent communication skills`,
-        requirements: [
-            "5+ years of experience in web development",
-            "Strong proficiency in React and Node.js",
-            "Experience with TypeScript",
-            "Knowledge of Docker and CI/CD",
-            "Experience with PostgreSQL or MongoDB"
-        ],
-        skills: ["JavaScript", "TypeScript", "React", "Node.js", "Docker", "PostgreSQL", "Git", "CI/CD"],
-        experienceLevel: "Mid-Senior level",
-        employmentType: "Full-time"
-    };
 }
 
 export function jobToText(job: LinkedInJob): string {

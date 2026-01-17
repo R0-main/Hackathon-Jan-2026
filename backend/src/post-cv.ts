@@ -11,6 +11,72 @@ import fs from 'fs';
 
 const router = Router();
 
+// Extract skills from job description text (généraliste, tous domaines)
+function extractSkillsFromText(text: string): string[] {
+  const commonSkills = [
+    // Soft skills & Management
+    'Leadership', 'Management', 'Communication', 'Négociation', 'Présentation',
+    'Gestion de projet', 'Gestion d\'équipe', 'Coordination', 'Organisation',
+    'Esprit d\'équipe', 'Autonomie', 'Rigueur', 'Créativité', 'Adaptabilité',
+    'Résolution de problèmes', 'Prise de décision', 'Analyse', 'Synthèse',
+
+    // Langues
+    'Anglais', 'Français', 'Espagnol', 'Allemand', 'Italien', 'Chinois', 'Arabe',
+    'Bilingue', 'Courant', 'Professionnel',
+
+    // Bureautique & Outils généraux
+    'Excel', 'Word', 'PowerPoint', 'Outlook', 'Office', 'Google Workspace',
+    'SAP', 'Salesforce', 'CRM', 'ERP', 'Notion', 'Trello', 'Slack', 'Teams',
+
+    // Finance & Comptabilité
+    'Comptabilité', 'Finance', 'Contrôle de gestion', 'Audit', 'Fiscalité',
+    'Budget', 'Reporting', 'Analyse financière', 'Trésorerie', 'Facturation',
+    'Paie', 'IFRS', 'Normes comptables',
+
+    // Marketing & Communication
+    'Marketing', 'Marketing digital', 'SEO', 'SEA', 'Community management',
+    'Réseaux sociaux', 'Content marketing', 'Brand management', 'E-commerce',
+    'Google Analytics', 'Publicité', 'Relations presse', 'Événementiel',
+
+    // Commercial & Vente
+    'Vente', 'Prospection', 'B2B', 'B2C', 'Négociation commerciale',
+    'Relation client', 'Fidélisation', 'Account management', 'Business development',
+
+    // RH & Juridique
+    'Recrutement', 'Formation', 'Droit du travail', 'Droit des affaires',
+    'Paie', 'GPEC', 'Relations sociales', 'Contrats',
+
+    // Industrie & Logistique
+    'Supply chain', 'Logistique', 'Achats', 'Approvisionnement', 'Stock',
+    'Production', 'Qualité', 'Lean', 'Six Sigma', 'ISO', 'HSE', 'Sécurité',
+    'Maintenance', 'CAO', 'AutoCAD', 'SolidWorks',
+
+    // Santé & Sciences
+    'Recherche', 'Laboratoire', 'Clinique', 'Réglementaire', 'Pharmacovigilance',
+    'BPF', 'GMP', 'Essais cliniques',
+
+    // Tech & IT (pour ne pas les exclure non plus)
+    'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'SQL', 'Cloud',
+    'AWS', 'Azure', 'Docker', 'Agile', 'Scrum', 'DevOps', 'Data', 'IA',
+    'Machine Learning', 'Cybersécurité', 'Développement web', 'Mobile',
+
+    // Méthodes & Certifications
+    'PMP', 'Prince2', 'ITIL', 'Agile', 'Scrum', 'Lean', 'Six Sigma',
+    'TOEIC', 'TOEFL', 'Certifié', 'Diplômé',
+  ];
+
+  const foundSkills: string[] = [];
+  const lowerText = text.toLowerCase();
+
+  for (const skill of commonSkills) {
+    if (lowerText.includes(skill.toLowerCase())) {
+      foundSkills.push(skill);
+    }
+  }
+
+  return [...new Set(foundSkills)];
+}
+
 // Configure multer to store files in memory
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -57,9 +123,9 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
      return;
   }
 
-  // Get job URL from request body
-  const { jobUrl } = req.body;
-  
+  // Get job URL or job description from request body
+  const { jobUrl, jobDescription: jobDescriptionText } = req.body;
+
   let jobDescription = '';
   let jobInfo = null;
 
@@ -75,6 +141,18 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
       } catch (error) {
         console.error('⚠️ Failed to scrape job, continuing without it:', error);
       }
+    } else if (jobDescriptionText && jobDescriptionText.trim()) {
+      // Use raw job description text provided by user
+      console.log('📝 Using provided job description text');
+      jobDescription = jobDescriptionText.trim();
+      // Extract skills from the text for better optimization
+      const extractedSkills = extractSkillsFromText(jobDescription);
+      jobInfo = {
+        title: 'Position',
+        company: 'Company',
+        skills: extractedSkills,
+      };
+      console.log('✅ Job description integrated, found skills:', extractedSkills.length);
     }
 
     // 1. Extract text from PDF
