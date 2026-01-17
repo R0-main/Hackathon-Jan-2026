@@ -624,6 +624,8 @@ export default function CVFlow({ onBack }: CVFlowProps) {
   const goToJobOffer = () => setStep('job-offer');
   const goToUpload = () => setStep('upload');
 
+
+
   const startGeneration = async () => {
     if (!cvFile) return;
 
@@ -631,39 +633,84 @@ export default function CVFlow({ onBack }: CVFlowProps) {
     setError(null);
 
     try {
-      // Créer le FormData avec le fichier CV et l'URL de l'offre
       const formData = new FormData();
       formData.append('cv', cvFile);
 
-      // Ajouter l'URL ou le texte de l'offre si disponible (pour optimisation ciblée)
+      // ✅ Prioriser l'URL si elle existe
       if (jobUrl && jobUrl.trim()) {
         formData.append('jobUrl', jobUrl.trim());
       } else if (jobOffer && jobOffer.trim()) {
         formData.append('jobDescription', jobOffer.trim());
       }
 
-      // Appel réel au backend
+      console.log('📤 Envoi vers:', `${API_URL}/api/cv`);
+
       const response = await fetch(`${API_URL}/api/cv`, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Erreur lors de la génération du CV');
+        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+        throw new Error(errorData.error || `Erreur ${response.status}`);
       }
 
-      // Récupérer le PDF généré comme blob
       const pdfBlob = await response.blob();
       const pdfUrl = URL.createObjectURL(pdfBlob);
       setGeneratedPdfUrl(pdfUrl);
       setStep('preview');
+
     } catch (err) {
-      console.error('Erreur:', err);
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue');
-      setStep('job-offer'); // Retour à l'étape précédente en cas d'erreur
+      console.error('❌ Erreur:', err);
+      setError(
+        err instanceof Error 
+          ? err.message 
+          : 'Impossible de générer le CV. Vérifie que le backend est démarré.'
+      );
+      setStep('job-offer');
     }
   };
+
+  // const startGeneration = async () => {
+  //   if (!cvFile) return;
+
+  //   setStep('loading');
+  //   setError(null);
+
+  //   try {
+  //     // Créer le FormData avec le fichier CV et l'URL de l'offre
+  //     const formData = new FormData();
+  //     formData.append('cv', cvFile);
+
+  //     // Ajouter l'URL ou le texte de l'offre si disponible (pour optimisation ciblée)
+  //     if (jobUrl && jobUrl.trim()) {
+  //       formData.append('jobUrl', jobUrl.trim());
+  //     } else if (jobOffer && jobOffer.trim()) {
+  //       formData.append('jobDescription', jobOffer.trim());
+  //     }
+
+  //     // Appel réel au backend
+  //     const response = await fetch(`${API_URL}/api/cv`, {
+  //       method: 'POST',
+  //       body: formData,
+  //     });
+
+  //     if (!response.ok) {
+  //       const errorText = await response.text();
+  //       throw new Error(errorText || 'Erreur lors de la génération du CV');
+  //     }
+
+  //     // Récupérer le PDF généré comme blob
+  //     const pdfBlob = await response.blob();
+  //     const pdfUrl = URL.createObjectURL(pdfBlob);
+  //     setGeneratedPdfUrl(pdfUrl);
+  //     setStep('preview');
+  //   } catch (err) {
+  //     console.error('Erreur:', err);
+  //     setError(err instanceof Error ? err.message : 'Une erreur est survenue');
+  //     setStep('job-offer'); // Retour à l'étape précédente en cas d'erreur
+  //   }
+  // };
 
   const goToPreview = () => setStep('preview');
 
