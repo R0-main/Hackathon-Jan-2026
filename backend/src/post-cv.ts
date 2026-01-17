@@ -86,7 +86,7 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
 
     // 2. Send to Blackbox AI
     const completion = await openai.chat.completions.create({
-      model: 'blackboxai/openai/gpt-4',
+      model: 'blackboxai/openai/gpt-5.1',
       messages: [
         {
           role: 'system',
