@@ -1,24 +1,23 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import { neon } from '@neondatabase/serverless';
 
-const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '..', 'data', 'app.db');
+const databaseUrl = process.env.DATABASE_URL;
 
-// Ensure data directory exists
-import fs from 'fs';
-const dataDir = path.dirname(dbPath);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL environment variable is required');
 }
 
-const db = new Database(dbPath);
+const sql = neon(databaseUrl);
 
 // Initialize tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS waitlist (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+export async function initDb() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS waitlist (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+  console.log('Database initialized');
+}
 
-export default db;
+export default sql;

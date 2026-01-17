@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 dotenv.config();
 
+import { initDb } from './db';
 import postCvRouter from './post-cv';
 import waitlistRouter from './waitlist';
 
@@ -23,6 +24,12 @@ app.get('/api/hello', (req: Request, res: Response) => {
   res.json({ message: 'Hello from the Backend API!' });
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// Initialize database and start server
+initDb().then(() => {
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
+}).catch((err) => {
+  console.error('Failed to initialize database:', err);
+  process.exit(1);
 });
