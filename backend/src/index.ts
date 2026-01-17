@@ -19,6 +19,9 @@ app.use(cors());
 // Serve static files from the 'outputs' directory
 app.use('/outputs', express.static(path.join(process.cwd(), 'outputs')));
 
+// Serve frontend assets
+app.use('/assets', express.static(path.join(process.cwd(), 'public/assets')));
+
 // MCP Server Integration using StreamableHTTPServerTransport (Stateless/Webhook style)
 app.post('/api/mcp', express.json(), async (req: Request, res: Response) => {
   try {

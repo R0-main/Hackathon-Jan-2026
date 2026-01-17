@@ -12,10 +12,48 @@ export const mcpServer = new McpServer({
 
 const processor = new CVProcessor();
 
-mcpServer.tool(
+// Register the CV Widget resource
+const cvHtmlPath = path.join(process.cwd(), 'public/index.html');
+
+mcpServer.registerResource(
+  "cv-widget",
+  "ui://widget/cv.html",
+  z.any(),
+  async (uri) => {
+    let cvHtmlContent = "";
+    try {
+        if (fs.existsSync(cvHtmlPath)) {
+            cvHtmlContent = fs.readFileSync(cvHtmlPath, "utf-8");
+        } else {
+            cvHtmlContent = "<h1>CV Widget</h1><p>Widget not found.</p>";
+        }
+    } catch (e) {
+        cvHtmlContent = "<h1>Error loading widget</h1>";
+    }
+
+    return {
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "text/html+skybridge",
+          text: cvHtmlContent,
+        },
+      ],
+    };
+  }
+);
+
+mcpServer.registerTool(
   "create_optimized_cv",
-  "Generates an optimized CV PDF from structured data without AI processing.",
-  cvSchema.shape,
+  {
+    description: "Generates an optimized CV PDF from structured data without AI processing.",
+    inputSchema: cvSchema.shape,
+    _meta: {
+      "openai/outputTemplate": "ui://widget/cv.html",
+      "openai/toolInvocation/invoking": "Generating CV...",
+      "openai/toolInvocation/invoked": "CV Generated",
+    },
+  },
   async (args) => {
     try {
         const outputPath = await processor.generatePDF(args);
@@ -32,6 +70,10 @@ mcpServer.tool(
               text: `# Here is your optimized CV\n\nYou can download it here: 📥 ${downloadUrl}`,
             },
           ],
+          structuredContent: {
+            downloadUrl: downloadUrl,
+            message: "Your CV is optimized using react"
+          }
         };
     } catch (error: any) {
         console.error(`[MCP ERROR] ${error.message}`);
@@ -48,60 +90,4 @@ mcpServer.tool(
   }
 );
 
-mcpServer.tool(
-  "save_file",
-  "Saves a file from the chat to the server. Can save text directly, decode base64, or download from a URL.",
-  {
-    filename: z.string().describe("The name of the file to save"),
-    content: z.string().describe("The file content (text), base64 string, or URL"),
-    source_type: z.enum(["text", "base64", "url"]).default("text").describe("The type of the source content"),
-  },
-  async ({ filename, content, source_type }) => {
-    const uploadsDir = path.join(process.cwd(), "uploads");
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    const filePath = path.join(uploadsDir, path.basename(filename));
-    
-    try {
-      if (source_type === "url") {
-        const response = await fetch(content);
-        if (!response.ok) {
-           throw new Error(`Failed to download file from URL: ${response.statusText}`);
-        }
-        const arrayBuffer = await response.arrayBuffer();
-        fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
-      } else if (source_type === "base64") {
-        const buffer = Buffer.from(content, "base64");
-        fs.writeFileSync(filePath, buffer);
-      } else {
-        // Default to text
-        fs.writeFileSync(filePath, content, "utf-8");
-      }
-      
-      console.log(`[MCP SAVE] Saved file to ${filePath} (source: ${source_type})`);
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `File '${filename}' saved successfully to ${filePath}`,
-          },
-        ],
-      };
-    } catch (error: any) {
-      console.error(`[MCP SAVE ERROR] ${error.message}`);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Failed to save file: ${error.message}`,
-          },
-        ],
-        isError: true,
-      };
-    }
-  }
-);
 
