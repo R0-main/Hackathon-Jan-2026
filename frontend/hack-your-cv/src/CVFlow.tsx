@@ -1,8 +1,14 @@
 import { useState, useCallback } from 'react';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 import './CVFlow.css';
 
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
 // Types
-type Step = 'upload' | 'job-offer' | 'loading' | 'result';
+type Step = 'upload' | 'job-offer' | 'loading' | 'preview' | 'result';
 
 interface CVFlowProps {
   onBack: () => void;
@@ -65,6 +71,36 @@ const Check = ({ size = 20 }: { size?: number }) => (
 const X = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
+const ChevronLeft = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+);
+
+const ChevronRight = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+
+const ZoomIn = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+  </svg>
+);
+
+const ZoomOut = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
+  </svg>
+);
+
+const Edit = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
   </svg>
 );
 
@@ -132,7 +168,7 @@ const UploadStep = ({
   return (
     <div className="step-container">
       <div className="step-header">
-        <span className="step-number">1/4</span>
+        <span className="step-number">1/5</span>
         <h1>Uploade ton CV</h1>
         <p>Glisse-depose ton CV au format PDF pour commencer l'optimisation.</p>
       </div>
@@ -214,7 +250,7 @@ const JobOfferStep = ({
   return (
     <div className="step-container">
       <div className="step-header">
-        <span className="step-number">2/4</span>
+        <span className="step-number">2/5</span>
         <h1>L'offre qui t'interesse</h1>
         <p>Colle le texte de l'annonce ou son URL pour qu'on adapte ton CV.</p>
       </div>
@@ -334,17 +370,168 @@ const LoadingStep = () => {
   );
 };
 
-// Step 4: Result
+// Step 4: Preview & Validate
+const PreviewStep = ({
+  pdfUrl,
+  onValidate,
+  onBack
+}: {
+  pdfUrl: string | null;
+  onValidate: () => void;
+  onBack: () => void;
+}) => {
+  const [numPages, setNumPages] = useState<number>(0);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(2); // Index in zoom levels array
+
+  const zoomLevels = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+  const scale = zoomLevels[zoomLevel];
+
+  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    setNumPages(numPages);
+  };
+
+  const goToPrevPage = () => {
+    setPageNumber((prev) => Math.max(prev - 1, 1));
+  };
+
+  const goToNextPage = () => {
+    setPageNumber((prev) => Math.min(prev + 1, numPages));
+  };
+
+  const zoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 1, zoomLevels.length - 1));
+  };
+
+  const zoomOut = () => {
+    setZoomLevel((prev) => Math.max(prev - 1, 0));
+  };
+
+  return (
+    <div className="step-container preview-container">
+      <div className="step-header">
+        <span className="step-number">4/5</span>
+        <h1>Valide ton CV</h1>
+        <p>Verifie chaque ligne avant l'export final. Tu peux revenir en arriere si besoin.</p>
+      </div>
+
+      <div className="pdf-viewer">
+        <div className="pdf-toolbar">
+          <div className="pdf-nav">
+            <button
+              className="pdf-btn"
+              onClick={goToPrevPage}
+              disabled={pageNumber <= 1}
+              aria-label="Page precedente"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="pdf-page-info">
+              {pageNumber} / {numPages}
+            </span>
+            <button
+              className="pdf-btn"
+              onClick={goToNextPage}
+              disabled={pageNumber >= numPages}
+              aria-label="Page suivante"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+          <div className="pdf-zoom">
+            <button
+              className="pdf-btn"
+              onClick={zoomOut}
+              disabled={zoomLevel <= 0}
+              aria-label="Zoom arriere"
+            >
+              <ZoomOut size={18} />
+            </button>
+            <span className="pdf-zoom-level">{Math.round(scale * 100)}%</span>
+            <button
+              className="pdf-btn"
+              onClick={zoomIn}
+              disabled={zoomLevel >= zoomLevels.length - 1}
+              aria-label="Zoom avant"
+            >
+              <ZoomIn size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="pdf-document-wrapper">
+          {pdfUrl ? (
+            <Document
+              file={pdfUrl}
+              onLoadSuccess={onDocumentLoadSuccess}
+              loading={
+                <div className="pdf-loading">
+                  <div className="pdf-loading-spinner"></div>
+                  <p>Chargement du PDF...</p>
+                </div>
+              }
+              error={
+                <div className="pdf-error">
+                  <p>Erreur lors du chargement du PDF</p>
+                </div>
+              }
+            >
+              <Page
+                pageNumber={pageNumber}
+                scale={scale}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+              />
+            </Document>
+          ) : (
+            <div className="pdf-placeholder">
+              <FileText size={48} />
+              <p>Apercu du CV non disponible</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="preview-info">
+        <div className="preview-tip">
+          <Edit size={16} />
+          <span>Un probleme ? Retourne en arriere pour modifier les informations.</span>
+        </div>
+      </div>
+
+      <div className="step-actions step-actions-split">
+        <button className="btn-back" onClick={onBack}>
+          <ArrowLeft size={18} />
+          Modifier
+        </button>
+        <button className="btn-validate" onClick={onValidate}>
+          <Check size={18} />
+          Valider et telecharger
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Step 5: Result
 const ResultStep = ({
+  pdfUrl,
   onBack,
   onRestart
 }: {
+  pdfUrl: string | null;
   onBack: () => void;
   onRestart: () => void;
 }) => {
   const handleDownload = () => {
-    // TODO: Implement actual download from backend
-    alert('Telechargement du CV optimise (a implementer avec le backend)');
+    if (pdfUrl) {
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = 'CV_Optimise.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return (
@@ -354,7 +541,7 @@ const ResultStep = ({
           <Check size={32} />
         </div>
         <h1>Ton CV est pret !</h1>
-        <p>Ton CV a ete optimise pour matcher les exigences de l'offre.</p>
+        <p>Tu as valide ton CV. Il est maintenant optimise pour matcher les exigences de l'offre.</p>
       </div>
 
       <div className="result-preview">
@@ -362,7 +549,7 @@ const ResultStep = ({
           <FileText size={24} />
           <div>
             <p className="preview-title">CV_Optimise.pdf</p>
-            <p className="preview-subtitle">Optimise pour le poste cible</p>
+            <p className="preview-subtitle">Valide et pret a l'export</p>
           </div>
         </div>
 
@@ -381,13 +568,17 @@ const ResultStep = ({
           </div>
         </div>
 
-        <button className="btn-download" onClick={handleDownload}>
+        <button className="btn-download" onClick={handleDownload} disabled={!pdfUrl}>
           <Download size={20} />
           Telecharger mon CV (PDF)
         </button>
       </div>
 
       <div className="result-actions">
+        <button className="btn-back" onClick={onBack}>
+          <ArrowLeft size={18} />
+          Revoir le CV
+        </button>
         <button className="btn-secondary" onClick={onRestart}>
           Optimiser un autre CV
         </button>
@@ -402,22 +593,40 @@ export default function CVFlow({ onBack }: CVFlowProps) {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [jobOffer, setJobOffer] = useState('');
   const [jobUrl, setJobUrl] = useState('');
+  const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string | null>(null);
 
   const goToJobOffer = () => setStep('job-offer');
   const goToUpload = () => setStep('upload');
 
   const startGeneration = () => {
     setStep('loading');
-    // Simulate API call
+    // Simulate API call - in production, this would call the backend
+    // and receive the generated PDF URL
     setTimeout(() => {
-      setStep('result');
+      // For demo: use the uploaded CV as preview (will be replaced by backend-generated PDF)
+      if (cvFile) {
+        const url = URL.createObjectURL(cvFile);
+        setGeneratedPdfUrl(url);
+      }
+      setStep('preview');
     }, 4000);
   };
 
+  const goToPreview = () => setStep('preview');
+
+  const validateAndDownload = () => {
+    setStep('result');
+  };
+
   const restart = () => {
+    // Clean up blob URL
+    if (generatedPdfUrl) {
+      URL.revokeObjectURL(generatedPdfUrl);
+    }
     setCvFile(null);
     setJobOffer('');
     setJobUrl('');
+    setGeneratedPdfUrl(null);
     setStep('upload');
   };
 
@@ -454,9 +663,17 @@ export default function CVFlow({ onBack }: CVFlowProps) {
           />
         )}
         {step === 'loading' && <LoadingStep />}
+        {step === 'preview' && (
+          <PreviewStep
+            pdfUrl={generatedPdfUrl}
+            onValidate={validateAndDownload}
+            onBack={goToJobOffer}
+          />
+        )}
         {step === 'result' && (
           <ResultStep
-            onBack={goToJobOffer}
+            pdfUrl={generatedPdfUrl}
+            onBack={goToPreview}
             onRestart={restart}
           />
         )}
