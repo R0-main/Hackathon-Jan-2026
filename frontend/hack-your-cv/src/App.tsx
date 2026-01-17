@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import CVFlow from './CVFlow';
 import './App.css';
+import { useI18n, LanguageSwitcher, type TFunction } from './i18n';
 
 // Icons as simple SVG components
 const CheckCircle = ({ size = 16, className = '' }: { size?: number; className?: string }) => (
@@ -65,7 +66,7 @@ const ArrowRight = ({ size = 20, className = '' }: { size?: number; className?: 
 );
 
 // Header Component
-const Header = ({ onStartCV }: { onStartCV: () => void }) => {
+const Header = ({ onStartCV, t }: { onStartCV: () => void; t: TFunction }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -84,11 +85,12 @@ const Header = ({ onStartCV }: { onStartCV: () => void }) => {
         </div>
 
         <nav className="nav-desktop">
-          <a href="#preuve">Avant / Apres</a>
-          <a href="#pour-qui">Pour qui ?</a>
-          <a href="#faq">FAQ</a>
+          <a href="#preuve">{t('beforeAfter')}</a>
+          <a href="#pour-qui">{t('forWho')}</a>
+          <a href="#faq">{t('faq')}</a>
+          <LanguageSwitcher />
           <button onClick={onStartCV} className="btn-primary">
-            Optimiser mon CV
+            {t('optimizeCV')}
           </button>
         </nav>
 
@@ -103,11 +105,12 @@ const Header = ({ onStartCV }: { onStartCV: () => void }) => {
 
       {mobileMenuOpen && (
         <div className="mobile-nav">
-          <a href="#preuve" onClick={() => setMobileMenuOpen(false)}>Avant / Apres</a>
-          <a href="#pour-qui" onClick={() => setMobileMenuOpen(false)}>Pour qui ?</a>
-          <a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
+          <a href="#preuve" onClick={() => setMobileMenuOpen(false)}>{t('beforeAfter')}</a>
+          <a href="#pour-qui" onClick={() => setMobileMenuOpen(false)}>{t('forWho')}</a>
+          <a href="#faq" onClick={() => setMobileMenuOpen(false)}>{t('faq')}</a>
+          <LanguageSwitcher />
           <button onClick={onStartCV} className="btn-primary">
-            Optimiser mon CV
+            {t('optimizeCV')}
           </button>
         </div>
       )}
@@ -116,23 +119,23 @@ const Header = ({ onStartCV }: { onStartCV: () => void }) => {
 };
 
 // Hero CTA Component
-const HeroCTA = ({ onStartCV }: { onStartCV: () => void }) => {
+const HeroCTA = ({ onStartCV, t }: { onStartCV: () => void; t: TFunction }) => {
   return (
     <div className="hero-cta-card">
       <div className="hero-cta-content">
         <div className="hero-cta-icon">
           <Zap size={28} />
         </div>
-        <h3>Pret a optimiser ton CV ?</h3>
-        <p>Upload ton CV, colle une offre, telecharge ta version optimisee.</p>
+        <h3>{t('readyToOptimize')}</h3>
+        <p>{t('ctaDescription')}</p>
         <button onClick={onStartCV} className="hero-cta-button">
-          Commencer maintenant
+          {t('startNow')}
           <ArrowRight size={18} />
         </button>
         <div className="hero-cta-features">
-          <span><CheckCircle size={14} /> Gratuit</span>
-          <span><CheckCircle size={14} /> 2 minutes</span>
-          <span><CheckCircle size={14} /> Sans inscription</span>
+          <span><CheckCircle size={14} /> {t('free')}</span>
+          <span><CheckCircle size={14} /> {t('twoMinutes')}</span>
+          <span><CheckCircle size={14} /> {t('noSignup')}</span>
         </div>
       </div>
     </div>
@@ -140,24 +143,24 @@ const HeroCTA = ({ onStartCV }: { onStartCV: () => void }) => {
 };
 
 // Before/After Visual Component
-const BeforeAfterVisual = () => {
+const BeforeAfterVisual = ({ t }: { t: TFunction }) => {
   return (
     <div className="before-after-container">
       <div className="before-section">
         <div className="section-header">
-          <span className="section-badge">Ce que tu ecris</span>
+          <span className="section-badge">{t('whatYouWrite')}</span>
           <span className="status-badge status-rejected">
-            <XCircle size={14} /> Ignore
+            <XCircle size={14} /> {t('ignored')}
           </span>
         </div>
         <div className="quote-block quote-before">
-          <p>"J'ai gere le projet de refonte du site web de l'entreprise."</p>
+          <p>{t('beforeExample')}</p>
         </div>
         <div className="analysis-block">
-          <p className="analysis-label">Analyse ATS</p>
+          <p className="analysis-label">{t('atsAnalysis')}</p>
           <div className="tags">
-            <span className="tag">Trop vague</span>
-            <span className="tag">Aucun mot-cle technique</span>
+            <span className="tag">{t('tooVague')}</span>
+            <span className="tag">{t('noKeywords')}</span>
           </div>
         </div>
       </div>
@@ -166,21 +169,21 @@ const BeforeAfterVisual = () => {
         <div className="decorative-corner"></div>
         <div className="section-content">
           <div className="section-header">
-            <span className="section-badge badge-dark">Version HackYourCV</span>
+            <span className="section-badge badge-dark">{t('hackVersion')}</span>
             <span className="status-badge status-matched">
-              <CheckCircle size={14} /> Match 98%
+              <CheckCircle size={14} /> {t('match')}
             </span>
           </div>
           <div className="quote-block quote-after">
             <p>
-              "Pilote la refonte e-commerce (<span className="highlight-orange">React</span>, <span className="highlight-orange">Node.js</span>), augmentant le <span className="highlight-green">taux de conversion</span> de 15% en 3 mois."
+              "{t('afterExample')} (<span className="highlight-orange">{t('afterExampleTech')}</span>), {t('afterExampleResult')}"
             </p>
           </div>
           <div className="analysis-block">
-            <p className="analysis-label analysis-label-orange">Optimisations</p>
+            <p className="analysis-label analysis-label-orange">{t('optimizations')}</p>
             <div className="tags">
-              <span className="tag tag-white"><Check size={10}/> Hard Skills</span>
-              <span className="tag tag-white"><Check size={10}/> KPIs chiffres</span>
+              <span className="tag tag-white"><Check size={10}/> {t('hardSkills')}</span>
+              <span className="tag tag-white"><Check size={10}/> {t('kpis')}</span>
             </div>
           </div>
         </div>
@@ -190,25 +193,25 @@ const BeforeAfterVisual = () => {
 };
 
 // Who Is This For Component
-const WhoIsThisFor = () => (
+const WhoIsThisFor = ({ t }: { t: TFunction }) => (
   <div className="who-grid">
     <div className="who-section">
       <h3 className="who-title">
         <span className="who-icon who-icon-green"><Check size={16} /></span>
-        C'est pour toi si...
+        {t('forYouIf')}
       </h3>
       <ul className="who-list">
         <li className="who-item">
           <div className="bullet bullet-green"></div>
-          Tu postules a des offres avec &gt;100 candidats (grands groupes, scale-ups) ou le tri est automatique.
+          {t('forYou1')}
         </li>
         <li className="who-item">
           <div className="bullet bullet-green"></div>
-          Tu veux adapter ton CV a chaque offre en 2 minutes chrono, pas en 2 heures.
+          {t('forYou2')}
         </li>
         <li className="who-item">
           <div className="bullet bullet-green"></div>
-          Tu as l'experience, mais tu ne sais pas "te vendre" avec les mots-cles exacts.
+          {t('forYou3')}
         </li>
       </ul>
     </div>
@@ -216,20 +219,20 @@ const WhoIsThisFor = () => (
     <div className="who-section">
       <h3 className="who-title">
         <span className="who-icon who-icon-gray"><X size={16} /></span>
-        Pas pour toi si...
+        {t('notForYouIf')}
       </h3>
       <ul className="who-list who-list-muted">
         <li className="who-item">
           <div className="bullet bullet-gray"></div>
-          Tu cherches a inventer des competences que tu n'as pas (notre IA refuse de mentir).
+          {t('notForYou1')}
         </li>
         <li className="who-item">
           <div className="bullet bullet-gray"></div>
-          Tu postules pour des jobs 100% creatifs (Design, Art) ou le portfolio visuel prime.
+          {t('notForYou2')}
         </li>
         <li className="who-item">
           <div className="bullet bullet-gray"></div>
-          Tu penses qu'un beau design Canva suffit pour impressionner un algorithme.
+          {t('notForYou3')}
         </li>
       </ul>
     </div>
@@ -261,6 +264,7 @@ const FAQItem = ({ question, answer }: { question: string; answer: string }) => 
 // Main App Component
 function App() {
   const [showCVFlow, setShowCVFlow] = useState(false);
+  const { t } = useI18n();
 
   if (showCVFlow) {
     return <CVFlow onBack={() => setShowCVFlow(false)} />;
@@ -276,7 +280,7 @@ function App() {
       </div>
 
       <div className="content-wrapper">
-        <Header onStartCV={startCV} />
+        <Header onStartCV={startCV} t={t} />
 
         {/* Hero Section */}
         <section className="hero-section">
@@ -285,27 +289,27 @@ function App() {
               <div className="hero-text">
                 <div className="live-badge animate-fadeIn">
                   <div className="live-dot"></div>
-                  <span>Disponible maintenant</span>
+                  <span>{t('availableNow')}</span>
                 </div>
 
                 <h1 className="hero-title">
-                  Ton CV doit matcher en <span className="hero-highlight">2 minutes</span>.
+                  {t('heroTitle')} <span className="hero-highlight">{t('heroTitleHighlight')}</span>.
                 </h1>
 
                 <p className="hero-subtitle">
-                  Colle une offre. On detecte les mots-cles manquants, puis on reecrit tes experiences en langage ATS. <span className="hero-emphasis">Zero bullshit, zero invention.</span>
+                  {t('heroSubtitle')} <span className="hero-emphasis">{t('heroEmphasis')}</span>
                 </p>
 
                 <div className="hero-features">
                   <span className="feature-item">
-                    <CheckCircle size={16} className="feature-icon" /> Compatible 100% ATS
+                    <CheckCircle size={16} className="feature-icon" /> {t('atsCompatible')}
                   </span>
                 </div>
               </div>
 
               <div className="hero-cta-wrapper">
                 <div className="demo-blob"></div>
-                <HeroCTA onStartCV={startCV} />
+                <HeroCTA onStartCV={startCV} t={t} />
               </div>
             </div>
           </div>
@@ -316,21 +320,21 @@ function App() {
           <div className="section-container">
             <div className="problem-grid">
               <div className="problem-text">
-                <h2>Pourquoi tu te fais ghoster ?</h2>
+                <h2>{t('whyGhosted')}</h2>
                 <div className="problem-content">
-                  <p><strong>Ce n'est pas ton experience le probleme.</strong> C'est la semantique.</p>
-                  <p>Les recruteurs utilisent des filtres automatiques. Si ton CV dit "Gere une equipe" et que l'offre demande "Leadership Agile", tu disparais du classement.</p>
-                  <p className="problem-quote">Notre job : traduire ton experience reelle dans le dialecte exact du recruteur.</p>
+                  <p><strong>{t('notExperience')}</strong> {t('itsSemantic')}</p>
+                  <p>{t('problemExplanation')}</p>
+                  <p className="problem-quote">{t('problemQuote')}</p>
                 </div>
               </div>
               <div className="stats-grid">
                 <div className="stat-card">
                   <div className="stat-value">78%</div>
-                  <div className="stat-label">Des CV rejetes par robots</div>
+                  <div className="stat-label">{t('cvRejected')}</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-value">6s</div>
-                  <div className="stat-label">Temps de lecture moyen</div>
+                  <div className="stat-label">{t('avgReadTime')}</div>
                 </div>
               </div>
             </div>
@@ -341,22 +345,22 @@ function App() {
         <section id="preuve" className="proof-section">
           <div className="section-container">
             <div className="section-header-center">
-              <span className="section-tag">Preuve par l'exemple</span>
-              <h2>On garde le fond, on change l'impact.</h2>
-              <p>Comparaison basee sur une analyse reelle d'un profil Product Manager.</p>
+              <span className="section-tag">{t('proofByExample')}</span>
+              <h2>{t('keepSubstance')}</h2>
+              <p>{t('comparisonBased')}</p>
             </div>
 
-            <BeforeAfterVisual />
+            <BeforeAfterVisual t={t} />
 
             <div className="policy-card">
               <div className="policy-blob"></div>
               <div className="policy-content">
                 <h3>
                   <ShieldCheck size={28} className="policy-icon" />
-                  Politique "Zero mensonge"
+                  {t('zeroLiePolicy')}
                 </h3>
                 <p>
-                  Notre IA est bridee pour ne jamais inventer. Elle reformule, reordonne et traduit, mais ne cree pas d'experience ex-nihilo. <span className="policy-highlight">Tu valides chaque ligne avant l'export final.</span>
+                  {t('policyText')} <span className="policy-highlight">{t('validateEachLine')}</span>
                 </p>
               </div>
               <div className="policy-code">
@@ -375,40 +379,40 @@ function App() {
         <section id="pour-qui" className="for-who-section">
           <div className="section-container-narrow">
             <div className="section-header-center">
-              <h2>Est-ce que c'est pour toi ?</h2>
-              <p>Soyons honnetes, HackYourCV ne sert pas a tout le monde.</p>
+              <h2>{t('isItForYou')}</h2>
+              <p>{t('honestlyNot')}</p>
             </div>
-            <WhoIsThisFor />
+            <WhoIsThisFor t={t} />
           </div>
         </section>
 
         {/* FAQ Section */}
         <section id="faq" className="faq-section">
           <div className="faq-container">
-            <h2>Questions rapides</h2>
+            <h2>{t('quickQuestions')}</h2>
             <div className="faq-list">
               <FAQItem
-                question="C'est quoi un ATS ?"
-                answer="C'est le logiciel qui lit ton CV avant l'humain. S'il ne trouve pas les mots exacts de l'offre, tu passes a la trappe."
+                question={t('whatIsAts')}
+                answer={t('atsAnswer')}
               />
               <FAQItem
-                question="Est-ce que ca remplace mon CV actuel ?"
-                answer="Non, ca cree une version 'ciblee' pour une offre specifique. Tu gardes ton CV maitre, nous generons les variantes."
+                question={t('doesItReplace')}
+                answer={t('replaceAnswer')}
               />
               <FAQItem
-                question="C'est gratuit ?"
-                answer="Oui, l'outil est entierement gratuit. Uploade ton CV et optimise-le autant de fois que tu veux."
+                question={t('isItFree')}
+                answer={t('freeAnswer')}
               />
             </div>
 
             <div className="final-cta">
-              <h2>Arrete de te faire filtrer.</h2>
-              <p>Optimise ton CV maintenant, gratuitement.</p>
+              <h2>{t('stopBeingFiltered')}</h2>
+              <p>{t('optimizeNowFree')}</p>
               <button
                 onClick={startCV}
                 className="btn-final-cta"
               >
-                Optimiser mon CV
+                {t('optimizeCV')}
                 <ArrowRight size={20} />
               </button>
             </div>
@@ -422,7 +426,7 @@ function App() {
               <div className="logo-icon-small">H</div>
               <span>HackYourCV</span>
             </div>
-            <p className="footer-copy">&copy; {new Date().getFullYear()} - Fait avec soin pour les candidats ignores.</p>
+            <p className="footer-copy">&copy; {new Date().getFullYear()} - {t('madeWithCare')}</p>
           </div>
         </footer>
       </div>
