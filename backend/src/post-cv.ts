@@ -4,7 +4,6 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { PDFParse } from 'pdf-parse';
 import { ModernATS_CVGenerator } from './CV/cv-creator';
-import { convertPdfToImages } from './utils/pdf-to-image';
 import path from 'path';
 import fs from 'fs';
 
@@ -63,26 +62,9 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
     const pdfData = await parser.getText();
     const textContent = pdfData.text;
 
-    // Convert PDF to images
-    let images: string[] = [];
-    try {
-      images = await convertPdfToImages(req.file.buffer);
-    } catch (err) {
-      console.error('Failed to convert PDF to images, proceeding with text only:', err);
-    }
-
     const userMessageContent: any[] = [
       { type: "text", text: `Here is the resume text:\n\n${textContent}` }
     ];
-
-    images.forEach(image => {
-      userMessageContent.push({
-        type: "image_url",
-        image_url: {
-          url: image
-        }
-      });
-    });
 
     // 2. Send to Blackbox AI
     const completion = await openai.chat.completions.create({
