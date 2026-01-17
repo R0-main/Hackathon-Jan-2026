@@ -4,7 +4,7 @@ import db from './db';
 const router = Router();
 
 // POST /api/waitlist - Join waitlist
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   const { email } = req.body;
 
   if (!email || typeof email !== 'string') {
@@ -32,6 +32,25 @@ router.post('/', (req: Request, res: Response) => {
 
     // Get position (count of entries up to and including this one)
     const position = db.prepare('SELECT COUNT(*) as count FROM waitlist WHERE id <= ?').get(result.lastInsertRowid) as { count: number };
+
+    // Send to Discord Webhook
+    const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
+    if (discordWebhookUrl) {
+      try {
+        await fetch(discordWebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: `🚀 New waitlist signup: **${email}**`,
+          }),
+        });
+      } catch (webhookError) {
+        console.error('Failed to send Discord webhook:', webhookError);
+        // Don't fail the request if webhook fails
+      }
+    }
 
     res.status(201).json({
       message: 'Successfully joined the waitlist!',
