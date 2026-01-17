@@ -5,8 +5,10 @@ services:
       - "${BACKEND_PORT:-3000}:3000"
     volumes:
       - ./backend/src:/app/src
+      - ./backend/data:/app/data
     environment:
       - PORT=3000
+      - DATABASE_PATH=/app/data/app.db
 
   frontend:
     build: ./frontend/hack-your-cv
