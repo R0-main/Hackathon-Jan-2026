@@ -146,6 +146,8 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
     // Use raw job description text provided by user
     console.log('📝 Using provided job description text');
     jobDescription = jobDescriptionText.trim();
+    // clean job description to extract only 
+
     // Extract skills from the text for better optimization
     const extractedSkills = extractSkillsFromText(jobDescription);
     jobInfo = {
@@ -181,7 +183,7 @@ IMPORTANT: Tailor this resume specifically for the job posting above. Match keyw
     // 2. Send to Blackbox AI
     console.log('🤖 Sending to Blackbox AI for optimization...');
     const completion = await openai.chat.completions.create({
-      model: 'blackboxai/openai/gpt-4',
+      model: 'blackboxai/openai/gpt-5.1',
       messages: [
         {
           role: 'system',
@@ -199,6 +201,8 @@ ${jobDescription ? `
 3. Rewrite experience to align with job requirements for: ${jobInfo?.title || 'the position'}
 4. Prioritize relevant experience first
 5. Add metrics where possible (percentages, numbers, impact)
+
+You must rework the explaination of the CV Experience to better fit the job description provided. You must round the edges and addapt the CV the best you can to the job description.
 ` : `
 Optimize this CV for ATS systems with professional language and strong action verbs.
 `}
@@ -246,6 +250,7 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
     });
 
     const aiContent = completion.choices[0].message.content;
+    console.log('jobs infos:', jobInfo, jobDescription);
 
     if (!aiContent) {
         throw new Error('No content received from AI');
