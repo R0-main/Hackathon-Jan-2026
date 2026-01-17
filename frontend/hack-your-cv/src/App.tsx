@@ -346,7 +346,7 @@ function App() {
               <div className="hero-text">
                 <div className="beta-badge animate-fadeIn">
                   <div className="beta-dot"></div>
-                  <span>Moteur v2.0 en Beta</span>
+                  <span>Beta live ce week-end</span>
                 </div>
 
                 <h1 className="hero-title">
