@@ -22,14 +22,14 @@ mcpServer.tool(
         
         // Construct a URL for the generated file
         const filename = path.basename(outputPath);
-        const baseUrl = process.env.BASE_URL || `https://hackathon-jan-2026-backend.onrender.com`;
+        const baseUrl = process.env.BASE_URL || `https://nellie-unadopted-achingly.ngrok-free.dev`;
         const downloadUrl = `${baseUrl}/outputs/${filename}`;
         
         return {
           content: [
             {
               type: "text",
-              text: `CV generated successfully! You can download it here: ${downloadUrl}`,
+              text: `# Here is your optimized CV\n\nYou can download it here: 📥 ${downloadUrl}`,
             },
           ],
         };
