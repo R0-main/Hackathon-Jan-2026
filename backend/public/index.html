@@ -9,39 +9,22 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            height: 500px;
+            height: 1200px;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             box-sizing: border-box;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f9fafb;
-        }
-        .download-button {
-            display: none; /* Hidden by default until we have a link */
-            align-items: center;
-            padding: 10px 20px;
-            background-color: #0070f3;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 600;
-            transition: background-color 0.2s;
-            font-size: 14px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .download-button:hover {
-            background-color: #0051bb;
+            overflow: hidden;
         }
         #pdf-container {
             display: none; /* Hidden by default */
             flex-grow: 1;
             width: 100%;
+            height: 100%;
             background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            border: none;
             overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         iframe {
             width: 100%;
@@ -49,7 +32,8 @@
             border: none;
         }
         .placeholder {
-            flex-grow: 1;
+            height: 100%;
+            width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -64,42 +48,46 @@
         CV preview will appear here once generated...
     </div>
 
-    <a id="download-link" href="#" target="_blank" class="download-button">
-        <span>Download PDF</span>
-    </a>
-
     <div id="pdf-container">
         <iframe id="pdf-frame" title="CV Preview"></iframe>
     </div>
 
-    <script>
-        function updateWidget(data) {
-            if (data && data.downloadUrl) {
-                // Show button and update link
-                const link = document.getElementById('download-link');
-                link.href = data.downloadUrl;
-                link.style.display = 'inline-flex';
+    <script type="module">
+        const containerEl = document.getElementById('pdf-container');
+        const iframeEl = document.getElementById('pdf-frame');
+        const placeholderEl = document.getElementById('placeholder');
 
-                // Show iframe and load PDF
-                const container = document.getElementById('pdf-container');
-                const iframe = document.getElementById('pdf-frame');
-                const placeholder = document.getElementById('placeholder');
+        // Initial state from tool output
+        let downloadUrl = window.openai?.toolOutput?.downloadUrl || null;
 
-                iframe.src = data.downloadUrl;
-                container.style.display = 'block';
-                placeholder.style.display = 'none';
+        const render = () => {
+            if (downloadUrl) {
+                // Add timestamp to prevent caching and force reload
+                iframeEl.src = `${downloadUrl}?t=${new Date().getTime()}`;
+                
+                containerEl.style.display = 'block';
+                placeholderEl.style.display = 'none';
+            } else {
+                containerEl.style.display = 'none';
+                placeholderEl.style.display = 'flex';
             }
-        }
+        };
 
-        // Listen for data from the host
-        window.addEventListener('message', (event) => {
-            updateWidget(event.data);
+        // Handle updates from the host environment
+        const handleSetGlobals = (event) => {
+            const globals = event.detail?.globals;
+            if (globals?.toolOutput?.downloadUrl) {
+                downloadUrl = globals.toolOutput.downloadUrl;
+                render();
+            }
+        };
+
+        window.addEventListener("openai:set_globals", handleSetGlobals, {
+            passive: true,
         });
-        
-        // Check for existing data
-        if (window.mcpData) {
-            updateWidget(window.mcpData);
-        }
+
+        // Initial render
+        render();
     </script>
 </body>
 </html>

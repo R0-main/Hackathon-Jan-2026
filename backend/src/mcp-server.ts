@@ -60,7 +60,7 @@ mcpServer.registerTool(
         
         // Construct a URL for the generated file
         const filename = path.basename(outputPath);
-        const baseUrl = process.env.BASE_URL || `https://nellie-unadopted-achingly.ngrok-free.dev`;
+        const baseUrl = process.env.BASE_URL || `http://localhost:3000`;
         const downloadUrl = `${baseUrl}/outputs/${filename}`;
         
         return {
