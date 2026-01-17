@@ -3,12 +3,21 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import './CVFlow.css';
+import { useI18n } from './i18n';
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // Types
 type Step = 'upload' | 'job-offer' | 'loading' | 'preview' | 'result';
+
+interface CVStats {
+  keywordsMatched: string[];
+  keywordsCount: number;
+  sectionsOptimized: number;
+  jobTitle: string | null;
+  jobCompany: string | null;
+}
 
 interface CVFlowProps {
   onBack: () => void;
@@ -74,18 +83,6 @@ const X = ({ size = 20 }: { size?: number }) => (
   </svg>
 );
 
-const ChevronLeft = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="15 18 9 12 15 6"/>
-  </svg>
-);
-
-const ChevronRight = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>
-);
-
 const ZoomIn = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
@@ -108,12 +105,15 @@ const Edit = ({ size = 20 }: { size?: number }) => (
 const UploadStep = ({
   file,
   setFile,
-  onNext
+  onNext,
+  error
 }: {
   file: File | null;
   setFile: (f: File | null) => void;
   onNext: () => void;
+  error?: string | null;
 }) => {
+  const { t } = useI18n();
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -144,10 +144,10 @@ const UploadStep = ({
       if (droppedFile.type === 'application/pdf') {
         setFile(droppedFile);
       } else {
-        alert('Seuls les fichiers PDF sont acceptes');
+        alert(t('pdfOnlyAlert'));
       }
     }
-  }, [setFile]);
+  }, [setFile, t]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -156,7 +156,7 @@ const UploadStep = ({
       if (selectedFile.type === 'application/pdf') {
         setFile(selectedFile);
       } else {
-        alert('Seuls les fichiers PDF sont acceptes');
+        alert(t('pdfOnlyAlert'));
       }
     }
   };
@@ -168,10 +168,21 @@ const UploadStep = ({
   return (
     <div className="step-container">
       <div className="step-header">
-        <span className="step-number">1/5</span>
-        <h1>Uploade ton CV</h1>
-        <p>Glisse-depose ton CV au format PDF pour commencer l'optimisation.</p>
+        <span className="step-number">{t('step1of5')}</span>
+        <h1>{t('uploadYourCV')}</h1>
+        <p>{t('dragDropCV')}</p>
       </div>
+
+      {error && (
+        <div className="error-banner error-banner-mismatch">
+          <X size={18} />
+          <div className="error-content">
+            {error.split('\n\n').map((paragraph, i) => (
+              <p key={i}>{paragraph}</p>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div
         className={`dropzone ${isDragging ? 'dropzone-active' : ''} ${file ? 'dropzone-has-file' : ''}`}
@@ -186,10 +197,10 @@ const UploadStep = ({
               <Upload size={48} />
             </div>
             <p className="dropzone-text">
-              <span className="dropzone-primary">Glisse ton CV ici</span>
-              <span className="dropzone-secondary">ou clique pour parcourir</span>
+              <span className="dropzone-primary">{t('dragHere')}</span>
+              <span className="dropzone-secondary">{t('orClickBrowse')}</span>
             </p>
-            <p className="dropzone-hint">PDF uniquement - 10 MB max</p>
+            <p className="dropzone-hint">{t('pdfOnly')}</p>
             <input
               type="file"
               accept=".pdf,application/pdf"
@@ -206,7 +217,7 @@ const UploadStep = ({
               <p className="file-name">{file.name}</p>
               <p className="file-size">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
             </div>
-            <button className="file-remove" onClick={removeFile} aria-label="Supprimer le fichier">
+            <button className="file-remove" onClick={removeFile} aria-label={t('deleteFile')}>
               <X size={18} />
             </button>
           </div>
@@ -219,7 +230,7 @@ const UploadStep = ({
           onClick={onNext}
           disabled={!file}
         >
-          Continuer
+          {t('continue')}
           <ArrowRight size={18} />
         </button>
       </div>
@@ -245,6 +256,7 @@ const JobOfferStep = ({
   onBack: () => void;
   error?: string | null;
 }) => {
+  const { t } = useI18n();
   const [inputMode, setInputMode] = useState<'text' | 'url'>('text');
 
   const canProceed = inputMode === 'text' ? jobOffer.trim().length > 50 : jobUrl.trim().length > 0;
@@ -252,9 +264,9 @@ const JobOfferStep = ({
   return (
     <div className="step-container">
       <div className="step-header">
-        <span className="step-number">2/5</span>
-        <h1>L'offre qui t'interesse</h1>
-        <p>Colle le texte de l'annonce ou son URL pour qu'on adapte ton CV.</p>
+        <span className="step-number">{t('step2of5')}</span>
+        <h1>{t('jobInterest')}</h1>
+        <p>{t('pasteJobText')}</p>
       </div>
 
       {error && (
@@ -270,14 +282,14 @@ const JobOfferStep = ({
           onClick={() => setInputMode('text')}
         >
           <FileText size={18} />
-          Texte de l'annonce
+          {t('jobText')}
         </button>
         <button
           className={`mode-btn ${inputMode === 'url' ? 'mode-btn-active' : ''}`}
           onClick={() => setInputMode('url')}
         >
           <Link size={18} />
-          URL de l'annonce
+          {t('jobUrl')}
         </button>
       </div>
 
@@ -286,18 +298,18 @@ const JobOfferStep = ({
           <textarea
             value={jobOffer}
             onChange={(e) => setJobOffer(e.target.value)}
-            placeholder="Colle ici le texte complet de l'offre d'emploi...
+            placeholder={`${t('pasteHere')}
 
-Exemple:
-- Titre du poste
-- Description du poste
-- Competences requises
-- etc."
+${t('example')}
+- ${t('jobTitle')}
+- ${t('jobDesc')}
+- ${t('requiredSkills')}
+- ${t('etc')}`}
             className="job-textarea"
           />
           <div className="textarea-footer">
             <span className={jobOffer.length < 50 ? 'char-count-warning' : 'char-count'}>
-              {jobOffer.length} caracteres {jobOffer.length < 50 && '(min 50)'}
+              {jobOffer.length} {t('characters')} {jobOffer.length < 50 && t('min50')}
             </span>
           </div>
         </div>
@@ -314,7 +326,7 @@ Exemple:
             />
           </div>
           <p className="url-hint">
-            Supporte: LinkedIn, Indeed, Welcome to the Jungle, etc.
+            {t('supports')}
           </p>
         </div>
       )}
@@ -322,14 +334,14 @@ Exemple:
       <div className="step-actions step-actions-split">
         <button className="btn-back" onClick={onBack}>
           <ArrowLeft size={18} />
-          Retour
+          {t('back')}
         </button>
         <button
           className="btn-next"
           onClick={onNext}
           disabled={!canProceed}
         >
-          Generer mon CV
+          {t('generateCV')}
           <ArrowRight size={18} />
         </button>
       </div>
@@ -339,19 +351,27 @@ Exemple:
 
 // Step 3: Loading
 const LoadingStep = () => {
+  const { t } = useI18n();
   const [currentStep, setCurrentStep] = useState(0);
 
   const steps = [
-    'Analyse de ton CV',
-    'Optimisation ATS en cours',
-    'Generation du nouveau CV',
+    t('step1Loading'),
+    t('step2Loading'),
+    t('step3Loading'),
+    t('step4Loading'),
   ];
 
-  // Progression automatique des étapes
+  // Progression calibrée sur le temps réel du backend (sans re-optimisation):
+  // - Scraping job (si URL): ~3-5s
+  // - Extraction PDF + Appel API Blackbox: ~5-15s
+  // - Guardian validation: ~3-5s
+  // - Génération PDF: ~1s
+  // Total typique: 15-25s
   useEffect(() => {
     const timers = [
-      setTimeout(() => setCurrentStep(1), 3000),  // Après 3s -> étape 2
-      setTimeout(() => setCurrentStep(2), 8000),  // Après 8s -> étape 3
+      setTimeout(() => setCurrentStep(1), 4000),   // 4s -> Optimisation IA
+      setTimeout(() => setCurrentStep(2), 12000),  // 12s -> Validation Guardian
+      setTimeout(() => setCurrentStep(3), 18000),  // 18s -> Génération PDF
     ];
     return () => timers.forEach(t => clearTimeout(t));
   }, []);
@@ -367,8 +387,8 @@ const LoadingStep = () => {
       </div>
 
       <div className="loading-content">
-        <h1>Generation en cours...</h1>
-        <p>Notre IA analyse ton CV et l'optimise pour les systemes ATS.</p>
+        <h1>{t('generatingCV')}</h1>
+        <p>{t('aiAnalyzing')}</p>
 
         <div className="loading-steps">
           {steps.map((label, index) => (
@@ -386,7 +406,7 @@ const LoadingStep = () => {
       </div>
 
       <p className="loading-disclaimer">
-        Cela prend generalement 10 a 20 secondes.
+        {t('usuallyTakes')}
       </p>
     </div>
   );
@@ -402,8 +422,8 @@ const PreviewStep = ({
   onValidate: () => void;
   onBack: () => void;
 }) => {
+  const { t } = useI18n();
   const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(2); // Index in zoom levels array
 
   const zoomLevels = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
@@ -411,14 +431,6 @@ const PreviewStep = ({
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
-  };
-
-  const goToPrevPage = () => {
-    setPageNumber((prev) => Math.max(prev - 1, 1));
-  };
-
-  const goToNextPage = () => {
-    setPageNumber((prev) => Math.min(prev + 1, numPages));
   };
 
   const zoomIn = () => {
@@ -432,40 +444,24 @@ const PreviewStep = ({
   return (
     <div className="step-container preview-container">
       <div className="step-header">
-        <span className="step-number">4/5</span>
-        <h1>Valide ton CV</h1>
-        <p>Verifie chaque ligne avant l'export final. Tu peux revenir en arriere si besoin.</p>
+        <span className="step-number">{t('step4of5')}</span>
+        <h1>{t('validateCV')}</h1>
+        <p>{t('checkEachLine')}</p>
       </div>
 
       <div className="pdf-viewer">
         <div className="pdf-toolbar">
           <div className="pdf-nav">
-            <button
-              className="pdf-btn"
-              onClick={goToPrevPage}
-              disabled={pageNumber <= 1}
-              aria-label="Page precedente"
-            >
-              <ChevronLeft size={18} />
-            </button>
             <span className="pdf-page-info">
-              {pageNumber} / {numPages}
+              {numPages} {numPages > 1 ? t('pages') : t('page')}
             </span>
-            <button
-              className="pdf-btn"
-              onClick={goToNextPage}
-              disabled={pageNumber >= numPages}
-              aria-label="Page suivante"
-            >
-              <ChevronRight size={18} />
-            </button>
           </div>
           <div className="pdf-zoom">
             <button
               className="pdf-btn"
               onClick={zoomOut}
               disabled={zoomLevel <= 0}
-              aria-label="Zoom arriere"
+              aria-label="Zoom out"
             >
               <ZoomOut size={18} />
             </button>
@@ -474,14 +470,14 @@ const PreviewStep = ({
               className="pdf-btn"
               onClick={zoomIn}
               disabled={zoomLevel >= zoomLevels.length - 1}
-              aria-label="Zoom avant"
+              aria-label="Zoom in"
             >
               <ZoomIn size={18} />
             </button>
           </div>
         </div>
 
-        <div className="pdf-document-wrapper">
+        <div className="pdf-document-wrapper pdf-continuous-scroll">
           {pdfUrl ? (
             <Document
               file={pdfUrl}
@@ -489,26 +485,31 @@ const PreviewStep = ({
               loading={
                 <div className="pdf-loading">
                   <div className="pdf-loading-spinner"></div>
-                  <p>Chargement du PDF...</p>
+                  <p>{t('loadingPdf')}</p>
                 </div>
               }
               error={
                 <div className="pdf-error">
-                  <p>Erreur lors du chargement du PDF</p>
+                  <p>{t('pdfError')}</p>
                 </div>
               }
             >
-              <Page
-                pageNumber={pageNumber}
-                scale={scale}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-              />
+              {Array.from(new Array(numPages), (_, index) => (
+                <div key={`page_${index + 1}`} className="pdf-page-container">
+                  <Page
+                    pageNumber={index + 1}
+                    scale={scale}
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                  />
+                  {index < numPages - 1 && <div className="pdf-page-separator" />}
+                </div>
+              ))}
             </Document>
           ) : (
             <div className="pdf-placeholder">
               <FileText size={48} />
-              <p>Apercu du CV non disponible</p>
+              <p>{t('previewUnavailable')}</p>
             </div>
           )}
         </div>
@@ -517,18 +518,18 @@ const PreviewStep = ({
       <div className="preview-info">
         <div className="preview-tip">
           <Edit size={16} />
-          <span>Un probleme ? Retourne en arriere pour modifier les informations.</span>
+          <span>{t('problemGoBack')}</span>
         </div>
       </div>
 
       <div className="step-actions step-actions-split">
         <button className="btn-back" onClick={onBack}>
           <ArrowLeft size={18} />
-          Modifier
+          {t('modify')}
         </button>
         <button className="btn-validate" onClick={onValidate}>
           <Check size={18} />
-          Valider et telecharger
+          {t('validateDownload')}
         </button>
       </div>
     </div>
@@ -538,13 +539,17 @@ const PreviewStep = ({
 // Step 5: Result
 const ResultStep = ({
   pdfUrl,
+  stats,
   onBack,
   onRestart
 }: {
   pdfUrl: string | null;
+  stats: CVStats | null;
   onBack: () => void;
   onRestart: () => void;
 }) => {
+  const { t } = useI18n();
+
   const handleDownload = () => {
     if (pdfUrl) {
       const link = document.createElement('a');
@@ -562,8 +567,12 @@ const ResultStep = ({
         <div className="success-icon">
           <Check size={32} />
         </div>
-        <h1>Ton CV est pret !</h1>
-        <p>Tu as valide ton CV. Il est maintenant optimise pour matcher les exigences de l'offre.</p>
+        <h1>{t('cvReady')}</h1>
+        <p>
+          {stats?.jobTitle && stats?.jobCompany
+            ? `${t('cvOptimizedFor')} "${stats.jobTitle}" ${t('at')} ${stats.jobCompany}.`
+            : t('cvOptimizedGeneral')}
+        </p>
       </div>
 
       <div className="result-preview">
@@ -571,38 +580,48 @@ const ResultStep = ({
           <FileText size={24} />
           <div>
             <p className="preview-title">CV_Optimise.pdf</p>
-            <p className="preview-subtitle">Valide et pret a l'export</p>
+            <p className="preview-subtitle">{t('validatedReady')}</p>
           </div>
         </div>
 
         <div className="preview-stats">
           <div className="stat-item">
-            <span className="stat-value-green">+45%</span>
-            <span className="stat-label">Match ATS</span>
+            <span className="stat-value">{stats?.keywordsCount || 0}</span>
+            <span className="stat-label">{t('keywordsMatched')}</span>
           </div>
           <div className="stat-item">
-            <span className="stat-value">12</span>
-            <span className="stat-label">Mots-cles ajoutes</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-value">3</span>
-            <span className="stat-label">Sections ameliorees</span>
+            <span className="stat-value">{stats?.sectionsOptimized || 0}</span>
+            <span className="stat-label">{t('sectionsOptimized')}</span>
           </div>
         </div>
 
+        {stats?.keywordsMatched && stats.keywordsMatched.length > 0 && (
+          <div className="keywords-list">
+            <p className="keywords-title">{t('skillsIdentified')}</p>
+            <div className="keywords-tags">
+              {stats.keywordsMatched.slice(0, 8).map((keyword, i) => (
+                <span key={i} className="keyword-tag">{keyword}</span>
+              ))}
+              {stats.keywordsMatched.length > 8 && (
+                <span className="keyword-tag keyword-more">+{stats.keywordsMatched.length - 8}</span>
+              )}
+            </div>
+          </div>
+        )}
+
         <button className="btn-download" onClick={handleDownload} disabled={!pdfUrl}>
           <Download size={20} />
-          Telecharger mon CV (PDF)
+          {t('downloadPdf')}
         </button>
       </div>
 
       <div className="result-actions">
         <button className="btn-back" onClick={onBack}>
           <ArrowLeft size={18} />
-          Revoir le CV
+          {t('reviewCV')}
         </button>
         <button className="btn-secondary" onClick={onRestart}>
-          Optimiser un autre CV
+          {t('optimizeAnother')}
         </button>
       </div>
     </div>
@@ -614,17 +633,20 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Main CVFlow Component
 export default function CVFlow({ onBack }: CVFlowProps) {
+  const { t } = useI18n();
   const [step, setStep] = useState<Step>('upload');
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [jobOffer, setJobOffer] = useState('');
   const [jobUrl, setJobUrl] = useState('');
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<CVStats | null>(null);
 
-  const goToJobOffer = () => setStep('job-offer');
+  const goToJobOffer = () => {
+    setError(null);
+    setStep('job-offer');
+  };
   const goToUpload = () => setStep('upload');
-
-
 
   const startGeneration = async () => {
     if (!cvFile) return;
@@ -636,14 +658,11 @@ export default function CVFlow({ onBack }: CVFlowProps) {
       const formData = new FormData();
       formData.append('cv', cvFile);
 
-      // ✅ Prioriser l'URL si elle existe
       if (jobUrl && jobUrl.trim()) {
         formData.append('jobUrl', jobUrl.trim());
       } else if (jobOffer && jobOffer.trim()) {
         formData.append('jobDescription', jobOffer.trim());
       }
-
-      console.log('📤 Envoi vers:', `${API_URL}/api/cv`);
 
       const response = await fetch(`${API_URL}/api/cv`, {
         method: 'POST',
@@ -651,66 +670,44 @@ export default function CVFlow({ onBack }: CVFlowProps) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
-        throw new Error(errorData.error || `Erreur ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: t('errorUnknown') }));
+
+        // Handle CV/Job mismatch - redirect to upload with clear message
+        if (errorData.error === 'CV_JOB_MISMATCH') {
+          setError(errorData.message + (errorData.suggestion ? '\n\n' + errorData.suggestion : ''));
+          setStep('upload');
+          return;
+        }
+
+        throw new Error(errorData.message || errorData.error || `Error ${response.status}`);
       }
 
-      const pdfBlob = await response.blob();
+      // Parse JSON response with stats and base64 PDF
+      const data = await response.json();
+
+      // Convert base64 to blob URL
+      const pdfBytes = atob(data.pdf.base64);
+      const pdfArray = new Uint8Array(pdfBytes.length);
+      for (let i = 0; i < pdfBytes.length; i++) {
+        pdfArray[i] = pdfBytes.charCodeAt(i);
+      }
+      const pdfBlob = new Blob([pdfArray], { type: 'application/pdf' });
       const pdfUrl = URL.createObjectURL(pdfBlob);
+
       setGeneratedPdfUrl(pdfUrl);
+      setStats(data.stats);
       setStep('preview');
 
     } catch (err) {
-      console.error('❌ Erreur:', err);
+      console.error('Error:', err);
       setError(
-        err instanceof Error 
-          ? err.message 
-          : 'Impossible de générer le CV. Vérifie que le backend est démarré.'
+        err instanceof Error
+          ? err.message
+          : t('errorBackendDown')
       );
       setStep('job-offer');
     }
   };
-
-  // const startGeneration = async () => {
-  //   if (!cvFile) return;
-
-  //   setStep('loading');
-  //   setError(null);
-
-  //   try {
-  //     // Créer le FormData avec le fichier CV et l'URL de l'offre
-  //     const formData = new FormData();
-  //     formData.append('cv', cvFile);
-
-  //     // Ajouter l'URL ou le texte de l'offre si disponible (pour optimisation ciblée)
-  //     if (jobUrl && jobUrl.trim()) {
-  //       formData.append('jobUrl', jobUrl.trim());
-  //     } else if (jobOffer && jobOffer.trim()) {
-  //       formData.append('jobDescription', jobOffer.trim());
-  //     }
-
-  //     // Appel réel au backend
-  //     const response = await fetch(`${API_URL}/api/cv`, {
-  //       method: 'POST',
-  //       body: formData,
-  //     });
-
-  //     if (!response.ok) {
-  //       const errorText = await response.text();
-  //       throw new Error(errorText || 'Erreur lors de la génération du CV');
-  //     }
-
-  //     // Récupérer le PDF généré comme blob
-  //     const pdfBlob = await response.blob();
-  //     const pdfUrl = URL.createObjectURL(pdfBlob);
-  //     setGeneratedPdfUrl(pdfUrl);
-  //     setStep('preview');
-  //   } catch (err) {
-  //     console.error('Erreur:', err);
-  //     setError(err instanceof Error ? err.message : 'Une erreur est survenue');
-  //     setStep('job-offer'); // Retour à l'étape précédente en cas d'erreur
-  //   }
-  // };
 
   const goToPreview = () => setStep('preview');
 
@@ -735,7 +732,7 @@ export default function CVFlow({ onBack }: CVFlowProps) {
       <header className="cv-flow-header">
         <button className="back-to-home" onClick={onBack}>
           <ArrowLeft size={18} />
-          <span>Retour</span>
+          <span>{t('back')}</span>
         </button>
         <div className="cv-flow-logo">
           <div className="logo-icon">H</div>
@@ -750,6 +747,7 @@ export default function CVFlow({ onBack }: CVFlowProps) {
             file={cvFile}
             setFile={setCvFile}
             onNext={goToJobOffer}
+            error={error}
           />
         )}
         {step === 'job-offer' && (
@@ -774,6 +772,7 @@ export default function CVFlow({ onBack }: CVFlowProps) {
         {step === 'result' && (
           <ResultStep
             pdfUrl={generatedPdfUrl}
+            stats={stats}
             onBack={goToPreview}
             onRestart={restart}
           />

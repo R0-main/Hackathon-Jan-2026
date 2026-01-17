@@ -149,32 +149,26 @@ export class ModernATS_CVGenerator {
 
     private addExperience(exp: CVExperience): void {
         this.doc.x = this.marginX;
-        const currentY = this.doc.y;
 
-        // Line 1: Title (Left) | Dates (Right)
+        // Title + Dates on same line (simple inline format)
         this.doc
             .font('Helvetica-Bold')
             .fontSize(11.5)
             .fillColor('black')
-            .text(exp.title, this.marginX, currentY, { width: this.contentWidth * 0.7, continued: false });
-
-        this.doc
+            .text(exp.title, { continued: true })
             .font('Helvetica')
             .fontSize(10)
             .fillColor(this.greyColor)
-            .text(exp.dates, this.marginX, currentY, { align: 'right', width: this.contentWidth });
+            .text(`  —  ${exp.dates}`, { align: 'left' });
 
-        // Line 2: Company (Left) | Location (Right)
-        const nextY = this.doc.y + 2;
+        // Company + Location on same line
+        const locationText = exp.location ? `, ${exp.location}` : '';
         this.doc
             .font('Helvetica-Oblique')
             .fontSize(10.5)
             .fillColor(this.accentColor)
-            .text(exp.company, this.marginX, nextY, { width: this.contentWidth * 0.7 });
-        
-        this.doc.text(exp.location, this.marginX, nextY, { align: 'right', width: this.contentWidth });
-
-        this.doc.moveDown(0.75);
+            .text(`${exp.company}${locationText}`)
+            .moveDown(0.5);
 
         // Description
         if (exp.description) {
@@ -198,20 +192,17 @@ export class ModernATS_CVGenerator {
 
     private addEducation(edu: CVEducation): void {
         this.doc.x = this.marginX;
-        const currentY = this.doc.y;
 
-        // Degree | Year
+        // Degree + Year on same line (simple inline format)
         this.doc
             .font('Helvetica-Bold')
             .fontSize(11)
             .fillColor('black')
-            .text(edu.degree, this.marginX, currentY, { width: this.contentWidth * 0.7 });
-
-        this.doc
+            .text(edu.degree, { continued: true })
             .font('Helvetica')
             .fontSize(10)
             .fillColor(this.greyColor)
-            .text(edu.year, this.marginX, currentY, { align: 'right', width: this.contentWidth });
+            .text(`  —  ${edu.year}`, { align: 'left' });
 
         // School
         this.doc

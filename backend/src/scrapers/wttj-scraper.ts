@@ -38,8 +38,8 @@ export class WelcomeToTheJungleScraper implements JobScraper {
                 timeout: 60000,
             });
             
-            console.log('⏳ Waiting for React to render (10 seconds)...');
-            await new Promise(resolve => setTimeout(resolve, 10000));
+            console.log('⏳ Waiting for React to render (3 seconds)...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
             
             // Essayer d'attendre des éléments clés
             try {
