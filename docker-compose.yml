@@ -1,0 +1,18 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    volumes:
+      - ./backend/src:/app/src
+    environment:
+      - PORT=3000
+
+  frontend:
+    build: ./frontend/hack-your-cv
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend/hack-your-cv/src:/app/src
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
