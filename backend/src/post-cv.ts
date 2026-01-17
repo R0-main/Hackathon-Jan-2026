@@ -5,6 +5,7 @@ import { z } from 'zod';
 import pdfParse from 'pdf-parse';
 import { ModernATS_CVGenerator } from './CV/cv-creator';
 import { convertPdfToImages } from './utils/pdf-to-image';
+import { scrapeLinkedInJob, jobToText } from './linkedin/job-scraper';
 import path from 'path';
 import fs from 'fs';
 
@@ -16,7 +17,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Initialize OpenAI client for Blackbox AI
 const openai = new OpenAI({
   baseURL: 'https://api.blackbox.ai',
-  apiKey: process.env.BLACK_BOX_API_KEY || 'YOUR_API_KEY', // Fallback to avoid crash if env not set, but won't work
+  apiKey: process.env.BLACK_BOX_API_KEY || 'YOUR_API_KEY',
 });
 
 // Zod Schema for CV data
@@ -43,87 +44,126 @@ const cvSchema = z.object({
   skills: z.record(z.string(), z.array(z.string())),
 });
 
-// Route to handle PDF upload
-// Expecting the file field name to be 'cv'
+// Route to handle PDF upload with optional job URL
+// Expecting: 'cv' file + optional 'jobUrl' in body
 router.post('/', upload.single('cv'), async (req: Request, res: Response): Promise<void> => {
   if (!req.file) {
     res.status(400).send('No file uploaded.');
     return;
   }
 
-  // Check if it is a PDF
   if (req.file.mimetype !== 'application/pdf') {
      res.status(400).send('Only PDF files are allowed.');
      return;
   }
 
+  // Get job URL from request body
+  const { jobUrl } = req.body;
+  
+  let jobDescription = '';
+  let jobInfo = null;
+
   try {
+    // If job URL is provided, scrape it
+    if (jobUrl && jobUrl.includes('linkedin.com/jobs')) {
+      console.log('🔍 Scraping job posting from:', jobUrl);
+      try {
+        const job = await scrapeLinkedInJob(jobUrl);
+        jobDescription = jobToText(job);
+        jobInfo = job;
+        console.log('✅ Job posting integrated:', job.title);
+      } catch (error) {
+        console.error('⚠️ Failed to scrape job, continuing without it:', error);
+      }
+    }
+
     // 1. Extract text from PDF
+    console.log('📄 Extracting text from CV...');
     const pdfData = await pdfParse(req.file.buffer);
     const textContent = pdfData.text;
 
-    // Convert PDF to images
-    let images: string[] = [];
-    try {
-      images = await convertPdfToImages(req.file.buffer);
-    } catch (err) {
-      console.error('Failed to convert PDF to images, proceeding with text only:', err);
-    }
+    // Don't send images to avoid API errors
+    console.log('📝 Preparing CV text for optimization...');
 
-    const userMessageContent: any[] = [
-      { type: "text", text: `Here is the resume text:\n\n${textContent}` }
-    ];
+    const userMessageContent = `Here is the resume text to optimize:
 
-    images.forEach(image => {
-      userMessageContent.push({
-        type: "image_url",
-        image_url: {
-          url: image
-        }
-      });
-    });
+${textContent}
+
+${jobDescription ? `
+=== JOB POSTING TO OPTIMIZE FOR ===
+
+${jobDescription}
+
+=== END JOB POSTING ===
+
+IMPORTANT: Tailor this resume specifically for the job posting above. Match keywords, highlight relevant skills, and align experience with requirements.
+` : ''}`;
 
     // 2. Send to Blackbox AI
+    console.log('🤖 Sending to Blackbox AI for optimization...');
     const completion = await openai.chat.completions.create({
-      model: 'blackboxai/openai/gpt-5.1',
+      model: 'blackboxai/openai/gpt-4',
       messages: [
         {
           role: 'system',
-          content: `You are a helpful assistant that parses resumes and extracts structured data. 
-          You must return ONLY a valid JSON object matching the following structure exactly. Do not add markdown formatting like 
-          
-          Structure example:
-          {
-            "header": {
-                "name": "Jean TEST",
-                "title": "Lead Développeur Python",
-                "contact": "jean@email.com • 06 00 00 00 00 • Paris"
-            },
-            "summary": "Développeur expérimenté...",
-            "experience": [
-                {
-                    "title": "Lead Developer",
-                    "company": "TechCorp",
-                    "location": "Paris",
-                    "dates": "2020 - Présent",
-                    "description": "Supervision technique...",
-                    "tasks": ["Conception d'architectures...", "Mise en place de Docker..."]
-                }
-            ],
-            "education": [ { "degree": "Master Informatique", "school": "Université Paris-Saclay", "year": "2018" } ],
-            "skills": {
-                "Langages": ["Python", "JavaScript"],
-                "DevOps": ["Docker", "CI/CD"]
-            }
-          }
-          `
+          content: `You are an EXPERT CV optimizer. Your ONLY task is to return a valid JSON object - nothing else.
+
+DO NOT write explanations, descriptions, or any other text.
+DO NOT use markdown code blocks (\`\`\`json).
+DO NOT add preambles or postambles.
+ONLY return the raw JSON object.
+
+${jobDescription ? `
+🎯 CRITICAL: A job posting has been provided. You MUST:
+1. Use exact keywords from the job description: ${jobInfo?.skills.join(', ') || 'technical skills'}
+2. Highlight skills that match: ${jobInfo?.skills.slice(0, 5).join(', ') || 'relevant skills'}
+3. Rewrite experience to align with job requirements for: ${jobInfo?.title || 'the position'}
+4. Prioritize relevant experience first
+5. Add metrics where possible (percentages, numbers, impact)
+` : `
+Optimize this CV for ATS systems with professional language and strong action verbs.
+`}
+
+REQUIRED JSON FORMAT (return ONLY this, no other text):
+
+{
+  "header": {
+    "name": "string",
+    "title": "string",
+    "contact": "string"
+  },
+  "summary": "string (2-3 sentences)",
+  "experience": [
+    {
+      "title": "string",
+      "company": "string",
+      "location": "string",
+      "dates": "string",
+      "description": "string",
+      "tasks": ["string", "string"]
+    }
+  ],
+  "education": [
+    {
+      "degree": "string",
+      "school": "string",
+      "year": "string"
+    }
+  ],
+  "skills": {
+    "Category1": ["skill1", "skill2"],
+    "Category2": ["skill3", "skill4"]
+  }
+}
+
+CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Just the JSON.`
         },
         {
           role: 'user',
-          content: userMessageContent as any,
+          content: userMessageContent,
         },
       ],
-      temperature: 0.1, // Low temperature for consistent formatting
+      temperature: 0.1,
     });
 
     const aiContent = completion.choices[0].message.content;
@@ -133,39 +173,66 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
     }
 
     // 3. Parse and Validate JSON
-    const cleanJson = aiContent.replace(/```json\n?|\n?```/g, '').trim();
+    console.log('📋 Parsing AI response...');
+    
+    // Clean the response more aggressively
+    let cleanJson = aiContent
+      .replace(/```json\n?|\n?```/g, '')  // Remove markdown code blocks
+      .replace(/^[^{]*({[\s\S]*})[^}]*$/g, '$1')  // Extract only the JSON object
+      .trim();
+    
+    // If the response doesn't start with {, try to find the JSON
+    if (!cleanJson.startsWith('{')) {
+      const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanJson = jsonMatch[0];
+      }
+    }
     
     let parsedData;
     try {
         parsedData = JSON.parse(cleanJson);
     } catch (e) {
-        console.error('Failed to parse JSON from AI:', cleanJson);
-        res.status(500).json({ error: 'AI response was not valid JSON', raw: cleanJson });
+        console.error('Failed to parse JSON from AI. Raw response:', aiContent.substring(0, 500));
+        console.error('Cleaned JSON attempt:', cleanJson.substring(0, 500));
+        res.status(500).json({ 
+          error: 'AI response was not valid JSON', 
+          raw: aiContent.substring(0, 1000),
+          cleaned: cleanJson.substring(0, 1000)
+        });
         return;
     }
 
     const validatedData = cvSchema.parse(parsedData);
 
     // 4. Generate New PDF
+    console.log('📄 Generating optimized PDF...');
     const outputFilename = `cv_optimized_${Date.now()}.pdf`;
-    const outputPath = path.join(process.cwd(), outputFilename);
-    const generator = new ModernATS_CVGenerator(outputPath);
+    const outputPath = path.join(process.cwd(), 'uploads', outputFilename);
     
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    
+    const generator = new ModernATS_CVGenerator(outputPath);
     await generator.generate(validatedData);
 
-    // 5. Return the file
-    res.download(outputPath, 'CV_Optimized.pdf', (err) => {
+    console.log('✅ CV optimized successfully!');
+    console.log(`📊 Optimized for: ${jobInfo ? `"${jobInfo.title}" at ${jobInfo.company}` : 'General ATS optimization'}`);
+
+    // 5. Return the file (and keep it on server)
+    res.download(outputPath, `CV_Optimized${jobInfo ? `_${jobInfo.company.replace(/\s+/g, '_')}` : ''}.pdf`, (err) => {
         if (err) {
             console.error('Error sending file:', err);
+        } else {
+            console.log('✅ File sent successfully (kept in uploads/)');
         }
-        // Cleanup file after sending
-        fs.unlink(outputPath, (unlinkErr) => {
-            if (unlinkErr) console.error('Error deleting temp file:', unlinkErr);
-        });
     });
 
   } catch (error) {
-    console.error('Error processing CV:', error);
+    console.error('❌ Error processing CV:', error);
     res.status(500).send('Error processing CV');
   }
 });
