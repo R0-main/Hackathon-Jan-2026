@@ -11,12 +11,20 @@ export class LinkedInScraper implements JobScraper {
     async scrape(jobUrl: string): Promise<JobPosting> {
         const BRIGHT_DATA_USER = process.env.BRIGHT_DATA_USER;
         const BRIGHT_DATA_PASS = process.env.BRIGHT_DATA_PASS;
-        
+
         if (!BRIGHT_DATA_USER || !BRIGHT_DATA_PASS) {
             throw new Error('Bright Data credentials not configured');
         }
-        
-        console.log(`🔵 [LinkedIn] Scraping: ${jobUrl}`);
+
+        // Transform URL to public format if it contains currentJobId parameter
+        let normalizedUrl = jobUrl;
+        const currentJobIdMatch = jobUrl.match(/currentJobId=(\d+)/);
+        if (currentJobIdMatch) {
+            normalizedUrl = `https://www.linkedin.com/jobs/view/${currentJobIdMatch[1]}`;
+            console.log(`🔄 [LinkedIn] Transformed URL: ${jobUrl} -> ${normalizedUrl}`);
+        }
+
+        console.log(`🔵 [LinkedIn] Scraping: ${normalizedUrl}`);
         
         let browser;
         let page;
@@ -32,7 +40,7 @@ export class LinkedInScraper implements JobScraper {
             await page.setViewport({ width: 1920, height: 1080 });
             await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
             
-            await page.goto(jobUrl, {
+            await page.goto(normalizedUrl, {
                 waitUntil: 'networkidle0',
                 timeout: 60000,
             });
