@@ -15,7 +15,12 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:4173', 'https://hackathon-jan-2026-frontend.onrender.com'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Serve static files from the 'outputs' directory
 app.use('/outputs', express.static(path.join(process.cwd(), 'outputs')));
