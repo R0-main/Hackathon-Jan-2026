@@ -47,7 +47,7 @@ export class CVProcessor {
     const validatedData = cvSchema.parse(data);
 
     const outputFilename = `cv_optimized_${Date.now()}.pdf`;
-    const outputPath = path.join(process.cwd(), 'outputs', outputFilename); // Saved in outputs folder
+    const outputPath = path.join(process.cwd(), 'public/assets', outputFilename); // Saved in public/assets folder
     
     // Ensure directory exists
     const dir = path.dirname(outputPath);
