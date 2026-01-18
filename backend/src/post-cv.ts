@@ -218,6 +218,7 @@ Si tout est légitime: {"valid": true, "issues": [], "inventedItems": []}`;
     return { valid: true, issues: ['Validation check could not be completed'], inventedItems: [] };
   }
 }
+
 // Route to handle PDF upload with optional job URL
 // Expecting: 'cv' file + optional 'jobUrl' in body
 router.post('/', upload.single('cv'), async (req: Request, res: Response): Promise<void> => {
@@ -242,15 +243,36 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
 
   try {
     // If job URL is provided, scrape it
-  if (jobUrl && jobUrl.trim()) {
-    const scrapeStart = Date.now();
-    console.log('🔍 [STEP 1] Scraping job posting from:', jobUrl);
-    try {
-      const scraper = getScraperForUrl(jobUrl);
-      const job = await scraper.scrape(jobUrl);
-      jobDescription = jobToText(job);
-      timers['1_scraping'] = Date.now() - scrapeStart;
-      console.log(`⏱️ Scraping done in ${timers['1_scraping']}ms`);
+    if (jobUrl && jobUrl.trim()) {
+      const scrapeStart = Date.now();
+      console.log('🔍 [STEP 1] Scraping job posting from:', jobUrl);
+      try {
+        const scraper = getScraperForUrl(jobUrl);
+        const job = await scraper.scrape(jobUrl);
+        jobDescription = jobToText(job);
+        timers['1_scraping'] = Date.now() - scrapeStart;
+        console.log(`⏱️ Scraping done in ${timers['1_scraping']}ms`);
+
+        // Extract skills using regex-based keyword matching (instant, no AI call)
+        const extractStart = Date.now();
+        console.log('🔍 [STEP 2] Extracting keywords...');
+        const extractedSkills = extractKeywords(jobDescription);
+        timers['2_keywords_extraction'] = Date.now() - extractStart;
+        console.log(`⏱️ Keywords extraction done in ${timers['2_keywords_extraction']}ms (${extractedSkills.length} found)`);
+
+        jobInfo = {
+          ...job,
+          skills: extractedSkills.length > 0 ? extractedSkills : job.skills,
+        };
+        console.log(`✅ Job posting integrated: ${job.title} (${job.platform})`);
+      } catch (error) {
+        console.error('⚠️ Failed to scrape job, continuing without it:', error);
+      }
+    } else if (jobDescriptionText && jobDescriptionText.trim()) {
+      // Use raw job description text provided by user
+      console.log('📝 [STEP 1] Using provided job description text');
+      jobDescription = jobDescriptionText.trim();
+      timers['1_job_text'] = 0;
 
       // Extract skills using regex-based keyword matching (instant, no AI call)
       const extractStart = Date.now();
@@ -260,33 +282,12 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
       console.log(`⏱️ Keywords extraction done in ${timers['2_keywords_extraction']}ms (${extractedSkills.length} found)`);
 
       jobInfo = {
-        ...job,
-        skills: extractedSkills.length > 0 ? extractedSkills : job.skills,
+        title: 'Position',
+        company: 'Company',
+        skills: extractedSkills,
       };
-      console.log(`✅ Job posting integrated: ${job.title} (${job.platform})`);
-    } catch (error) {
-      console.error('⚠️ Failed to scrape job, continuing without it:', error);
+      console.log('✅ Job description integrated, found skills:', extractedSkills.length);
     }
-  } else if (jobDescriptionText && jobDescriptionText.trim()) {
-    // Use raw job description text provided by user
-    console.log('📝 [STEP 1] Using provided job description text');
-    jobDescription = jobDescriptionText.trim();
-    timers['1_job_text'] = 0;
-
-    // Extract skills using regex-based keyword matching (instant, no AI call)
-    const extractStart = Date.now();
-    console.log('🔍 [STEP 2] Extracting keywords...');
-    const extractedSkills = extractKeywords(jobDescription);
-    timers['2_keywords_extraction'] = Date.now() - extractStart;
-    console.log(`⏱️ Keywords extraction done in ${timers['2_keywords_extraction']}ms (${extractedSkills.length} found)`);
-
-    jobInfo = {
-      title: 'Position',
-      company: 'Company',
-      skills: extractedSkills,
-    };
-    console.log('✅ Job description integrated, found skills:', extractedSkills.length);
-  }
 
     // 1. Extract text from PDF
     const pdfExtractStart = Date.now();
@@ -324,7 +325,7 @@ IMPORTANT: Reorganize and rephrase this resume to highlight relevant existing sk
           content: `You are an EXPERT CV optimizer. Your ONLY task is to return a valid JSON object - nothing else.
 
 DO NOT write explanations, descriptions, or any other text.
-DO NOT use markdown code blocks (\`\`\`json).
+DO NOT use markdown code blocks (\n)
 DO NOT add preambles or postambles.
 ONLY return the raw JSON object.
 
