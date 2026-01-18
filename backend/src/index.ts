@@ -7,6 +7,7 @@ dotenv.config();
 import { initDb } from './db';
 import postCvRouter from './post-cv';
 import waitlistRouter from './waitlist';
+import jobRouter from './routes/job-route';
 
 import { mcpServer } from './mcp-server';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -55,6 +56,7 @@ app.use(express.json());
 
 app.use('/api/cv', postCvRouter);
 app.use('/api/waitlist', waitlistRouter);
+app.use('/api/job', jobRouter);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Hello from Express Backend!');
@@ -68,6 +70,7 @@ app.get('/api/hello', (req: Request, res: Response) => {
 initDb().then(() => {
   app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
+    console.log(`📍 Job scraping route: POST /api/job/scrape-job`);
   });
 }).catch((err) => {
   console.error('Failed to initialize database:', err);
