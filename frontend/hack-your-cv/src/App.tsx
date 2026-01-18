@@ -65,6 +65,30 @@ const ArrowRight = ({ size = 20, className = '' }: { size?: number; className?: 
   </svg>
 );
 
+const Globe = ({ size = 24, className = '' }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+  </svg>
+);
+
+const ChatGPTLogo = ({ size = 24, className = '' }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.896zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z"/>
+  </svg>
+);
+
+const Terminal = ({ size = 24, className = '' }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+  </svg>
+);
+
+const ExternalLink = ({ size = 14, className = '' }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+  </svg>
+);
+
 // Header Component
 const Header = ({ onStartCV }: { onStartCV: () => void }) => {
   const { t } = useI18n();
@@ -248,6 +272,80 @@ const WhoIsThisFor = () => {
   );
 };
 
+// Integrations Component
+const IntegrationsSection = ({ onStartCV }: { onStartCV: () => void }) => {
+  const { t } = useI18n();
+
+  const integrations = [
+    {
+      icon: <Globe size={28} />,
+      title: t('webAppTitle'),
+      description: t('webAppDesc'),
+      cta: t('webAppCta'),
+      onClick: onStartCV,
+      isExternal: false,
+      color: 'integration-web'
+    },
+    {
+      icon: <ChatGPTLogo size={28} />,
+      title: t('chatGptTitle'),
+      description: t('chatGptDesc'),
+      cta: t('chatGptCta'),
+      href: 'https://chatgpt.com/g/g-6840639acb788191bf3ebe1f28fec1a7-hackyourcv',
+      isExternal: true,
+      color: 'integration-gpt'
+    },
+    {
+      icon: <Terminal size={28} />,
+      title: t('mcpTitle'),
+      description: t('mcpDesc'),
+      cta: t('mcpCta'),
+      href: 'https://github.com/R0-main/Hackathon-Jan-2026#mcp-server',
+      isExternal: true,
+      color: 'integration-mcp'
+    }
+  ];
+
+  return (
+    <section id="integrations" className="integrations-section">
+      <div className="section-container">
+        <div className="section-header-center">
+          <h2>{t('integrationsTitle')}</h2>
+          <p>{t('integrationsSubtitle')}</p>
+        </div>
+
+        <div className="integrations-grid">
+          {integrations.map((integration, index) => (
+            <div key={index} className={`integration-card ${integration.color}`}>
+              <div className="integration-icon">
+                {integration.icon}
+              </div>
+              <h3>{integration.title}</h3>
+              <p>{integration.description}</p>
+              {integration.isExternal ? (
+                <a
+                  href={integration.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="integration-cta"
+                >
+                  {integration.cta}
+                  <ExternalLink size={14} />
+                </a>
+              ) : (
+                <button onClick={integration.onClick} className="integration-cta">
+                  {integration.cta}
+                  <ArrowRight size={14} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 // FAQ Item Component
 const FAQItem = ({ questionKey, answerKey }: { questionKey: string; answerKey: string }) => {
   const { t } = useI18n();
@@ -398,6 +496,9 @@ function App() {
             <WhoIsThisFor />
           </div>
         </section>
+
+        {/* Integrations Section */}
+        <IntegrationsSection onStartCV={startCV} />
 
         {/* FAQ Section */}
         <section id="faq" className="faq-section">

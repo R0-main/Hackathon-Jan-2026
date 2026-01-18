@@ -73,6 +73,19 @@ const translations = {
     notForYou2: 'Tu postules à des postes créatifs où le portfolio visuel prime.',
     notForYou3: 'Tu penses qu\'un design soigné suffit à convaincre un algorithme.',
 
+    // Integrations section
+    integrationsTitle: 'Utilisable partout',
+    integrationsSubtitle: 'HackYourCV s\'intègre là où tu travailles déjà.',
+    webAppTitle: 'Web App',
+    webAppDesc: 'Interface complète, sans inscription. Upload, optimise, télécharge.',
+    webAppCta: 'Utiliser l\'app',
+    chatGptTitle: 'ChatGPT GPT',
+    chatGptDesc: 'Utilise HackYourCV directement dans ChatGPT. Conversation naturelle.',
+    chatGptCta: 'Ouvrir le GPT',
+    mcpTitle: 'MCP Server',
+    mcpDesc: 'Pour les développeurs. Intègre dans Claude Desktop, Cursor, ou ton propre outil.',
+    mcpCta: 'Documentation',
+
     // FAQ
     quickQuestions: 'Questions fréquentes',
     whatIsAts: 'Qu\'est-ce qu\'un ATS ?',
@@ -227,6 +240,19 @@ const translations = {
     notForYou1: 'You\'re looking to invent skills (our AI refuses to lie).',
     notForYou2: 'You\'re applying for creative positions where visual portfolio matters most.',
     notForYou3: 'You think a nice design is enough to convince an algorithm.',
+
+    // Integrations section
+    integrationsTitle: 'Available everywhere',
+    integrationsSubtitle: 'HackYourCV integrates where you already work.',
+    webAppTitle: 'Web App',
+    webAppDesc: 'Full interface, no signup. Upload, optimize, download.',
+    webAppCta: 'Use the app',
+    chatGptTitle: 'ChatGPT GPT',
+    chatGptDesc: 'Use HackYourCV directly in ChatGPT. Natural conversation.',
+    chatGptCta: 'Open GPT',
+    mcpTitle: 'MCP Server',
+    mcpDesc: 'For developers. Integrate with Claude Desktop, Cursor, or your own tools.',
+    mcpCta: 'Documentation',
 
     // FAQ
     quickQuestions: 'Frequently asked questions',
