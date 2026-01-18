@@ -634,6 +634,7 @@ const ResultStep = ({
 
 // API URL - en dev on utilise localhost, en prod l'URL du backend
 const API_URL = import.meta.env.VITE_API_URL || 'https://hackathon-jan-2026-backend.onrender.com';
+console.log('🔗 API_URL:', API_URL);
 
 // Main CVFlow Component
 export default function CVFlow({ onBack }: CVFlowProps) {
