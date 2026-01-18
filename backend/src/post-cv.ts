@@ -112,21 +112,28 @@ ${jobDescription}
 
 QUESTION CRITIQUE: Le profil du candidat est-il PERTINENT pour cette offre ?
 
-CRITÈRES DE PERTINENCE:
-✅ PERTINENT si:
-- Le candidat a au moins 30% des compétences clés demandées
-- L'expérience du candidat est dans un domaine connexe
-- Le niveau d'expérience est cohérent (junior pour poste junior, etc.)
-- Les technologies/outils utilisés sont similaires ou transférables
+⚠️ SOIS TRÈS PERMISSIF - On refuse UNIQUEMENT les cas ABSURDES.
 
-❌ NON PERTINENT si:
-- Le profil est dans un domaine complètement différent (ex: boulanger pour dev)
-- Aucune compétence technique demandée n'est présente ou transférable
-- Le niveau d'expérience est totalement inadapté (ex: étudiant pour poste de directeur)
-- Les technologies sont incompatibles et non transférables
+✅ PERTINENT (ACCEPTER) si:
+- Le candidat a UN SEUL skill transférable ou connexe
+- Le domaine est même vaguement lié (tech → tech, même si spécialités différentes)
+- Le candidat montre une capacité d'apprentissage (études, projets perso, etc.)
+- Les compétences peuvent être apprises (dev → cybersec = OK, dev → data = OK, etc.)
 
-IMPORTANT: Sois RAISONNABLE. Un développeur JavaScript peut postuler à un poste TypeScript.
-Un étudiant en informatique peut postuler à un stage dev même sans expérience pro.
+EXEMPLES À ACCEPTER:
+- Dev backend → poste cybersécurité = OK (scripting, réseaux, logique)
+- Dev frontend → poste fullstack = OK
+- Data analyst → poste dev = OK (Python, logique)
+- Étudiant info → n'importe quel poste tech junior = OK
+- Dev Java → poste Python = OK (langages transférables)
+- Sysadmin → poste DevOps = OK
+
+❌ NON PERTINENT (REFUSER) UNIQUEMENT si:
+- Le profil est dans un domaine TOTALEMENT différent sans AUCUN lien
+  Exemples: boulanger → dev, coiffeur → data scientist, chauffeur → architecte cloud
+- ZÉRO compétence technique et ZÉRO formation technique
+
+IMPORTANT: En cas de DOUTE, ACCEPTER. On préfère optimiser un CV même si le match n'est pas parfait.
 ` : 'Pas d\'offre fournie - considérer le profil comme pertinent par défaut.'}
 
 ═══════════════════════════════════════════════════════════════
