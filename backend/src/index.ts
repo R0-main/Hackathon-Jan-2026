@@ -15,6 +15,14 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 const app = express();
 const port = process.env.BACKEND_PORT || 3000;
 
+// Keep frontend alive by pinging every 5 minutes
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://hackathon-jan-2026.onrender.com';
+const keepFrontendAlive = () => {
+  fetch(FRONTEND_URL).catch(() => {});
+};
+keepFrontendAlive();
+setInterval(keepFrontendAlive, 5 * 60 * 1000);
+
 app.use(cors({
   origin: true, // Allow all origins temporarily
   credentials: true,
