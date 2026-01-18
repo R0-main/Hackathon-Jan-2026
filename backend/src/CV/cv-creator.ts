@@ -256,3 +256,93 @@ export class ModernATS_CVGenerator {
         this.doc.y = y + 5; 
     }
 }
+
+// --- MAIN TEST FUNCTION ---
+
+async function main() {
+    // Sample CV data for testing
+    const sampleCVData: CVData = {
+        header: {
+            name: "Jean Dupont",
+            title: "Développeur Full Stack Senior",
+            contact: "jean.dupont@email.com | +33 6 12 34 56 78 | Paris, France | linkedin.com/in/jeandupont"
+        },
+        summary: "Développeur Full Stack passionné avec plus de 5 ans d'expérience dans la conception et le développement d'applications web modernes. Expert en JavaScript/TypeScript, React, Node.js et bases de données SQL/NoSQL. Capacité démontrée à livrer des solutions innovantes dans des environnements agiles.",
+        experience: [
+            {
+                title: "Développeur Full Stack Senior",
+                company: "TechCorp Solutions",
+                location: "Paris, France",
+                dates: "Jan 2021 - Présent",
+                description: "Lead technique sur plusieurs projets d'applications web critiques pour des clients du CAC40.",
+                tasks: [
+                    "Développement d'une plateforme e-commerce générant 2M€ de CA annuel avec React et Node.js",
+                    "Migration d'une application legacy vers une architecture microservices, réduisant les coûts de 40%",
+                    "Mentorat de 3 développeurs juniors et mise en place de standards de code",
+                    "Optimisation des performances applicatives, réduction du temps de chargement de 60%"
+                ]
+            },
+            {
+                title: "Développeur Full Stack",
+                company: "StartupLab",
+                location: "Lyon, France",
+                dates: "Mar 2019 - Déc 2020",
+                description: "Membre de l'équipe core développant une solution SaaS B2B dans le domaine de la logistique.",
+                tasks: [
+                    "Développement de features end-to-end avec React, Express et PostgreSQL",
+                    "Implémentation de tests automatisés (Jest, Cypress) augmentant la couverture à 85%",
+                    "Participation aux choix d'architecture et revues de code",
+                    "Intégration de services tiers (Stripe, SendGrid, AWS S3)"
+                ]
+            },
+            {
+                title: "Développeur Web Junior",
+                company: "Digital Agency",
+                location: "Bordeaux, France",
+                dates: "Sep 2017 - Fév 2019",
+                description: "Développement de sites web et applications pour divers clients.",
+                tasks: [
+                    "Création de sites web responsive avec HTML5, CSS3, JavaScript",
+                    "Développement de thèmes WordPress personnalisés",
+                    "Maintenance et évolution d'applications existantes",
+                    "Collaboration directe avec designers et chefs de projet"
+                ]
+            }
+        ],
+        education: [
+            {
+                degree: "Master en Informatique - Spécialité Développement Web",
+                school: "Université Paris-Saclay",
+                year: "2017"
+            },
+            {
+                degree: "Licence en Informatique",
+                school: "Université de Bordeaux",
+                year: "2015"
+            }
+        ],
+        skills: {
+            "Langages": ["JavaScript", "TypeScript", "Python", "SQL", "HTML5", "CSS3"],
+            "Frontend": ["React", "Vue.js", "Next.js", "Redux", "TailwindCSS", "Material-UI"],
+            "Backend": ["Node.js", "Express", "NestJS", "Django", "REST APIs", "GraphQL"],
+            "Bases de données": ["PostgreSQL", "MongoDB", "Redis", "MySQL"],
+            "DevOps & Outils": ["Git", "Docker", "AWS", "CI/CD", "Jest", "Webpack"],
+            "Méthodologies": ["Agile/Scrum", "TDD", "Code Review", "Design Patterns"]
+        }
+    };
+
+    console.log("🚀 Starting CV generation test...\n");
+
+    try {
+        const generator = new ModernATS_CVGenerator("test-output-cv.pdf");
+        await generator.generate(sampleCVData);
+        console.log("\n✨ Test completed successfully!");
+        console.log("📄 Check the generated file: test-output-cv.pdf");
+    } catch (error) {
+        console.error("❌ Error generating CV:", error);
+        throw error;
+    }
+}
+
+// Export the main function for testing
+export { main };
