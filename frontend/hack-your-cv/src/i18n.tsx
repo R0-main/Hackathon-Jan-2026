@@ -121,11 +121,12 @@ const translations = {
     // CVFlow - Loading
     generatingCV: 'Génération en cours...',
     aiAnalyzing: 'Notre IA analyse ton CV et l\'optimise pour les systèmes ATS.',
-    step1Loading: 'Analyse de l\'offre d\'emploi',
-    step2Loading: 'Optimisation IA en cours',
-    step3Loading: 'Validation de l\'intégrité',
-    step4Loading: 'Génération du PDF final',
-    usuallyTakes: 'Cela prend généralement 15 à 25 secondes.',
+    step1Loading: 'Lecture de ton profil',
+    step2Loading: 'Analyse des mots-clés',
+    step3Loading: 'Optimisation en cours',
+    step4Loading: 'Vérification du contenu',
+    step5Loading: 'Mise en page finale',
+    usuallyTakes: 'Cela prend généralement 30 à 60 secondes.',
 
     // CVFlow - Preview
     step4of5: '4/5',
@@ -275,11 +276,12 @@ const translations = {
     // CVFlow - Loading
     generatingCV: 'Generating...',
     aiAnalyzing: 'Our AI is analyzing your CV and optimizing it for ATS systems.',
-    step1Loading: 'Analyzing job posting',
-    step2Loading: 'AI optimization in progress',
-    step3Loading: 'Integrity validation',
-    step4Loading: 'Generating final PDF',
-    usuallyTakes: 'This usually takes 15 to 25 seconds.',
+    step1Loading: 'Reading your profile',
+    step2Loading: 'Analyzing keywords',
+    step3Loading: 'Optimization in progress',
+    step4Loading: 'Content verification',
+    step5Loading: 'Final formatting',
+    usuallyTakes: 'This usually takes 30 to 60 seconds.',
 
     // CVFlow - Preview
     step4of5: '4/5',

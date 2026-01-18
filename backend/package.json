@@ -40,8 +40,10 @@
     "@types/node": "^25.0.9",
     "@types/pdf-parse": "^1.1.5",
     "@types/pdfkit": "^0.17.4",
+    "dotenv-cli": "^11.0.0",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }

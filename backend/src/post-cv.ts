@@ -5,85 +5,20 @@ import { z } from 'zod';
 import pdfParse from 'pdf-parse';
 import { ModernATS_CVGenerator } from './CV/cv-creator';
 import { getScraperForUrl, jobToText } from './scrapers';
+import { extractKeywords } from './keywords';
 import path from 'path';
 import fs from 'fs';
 
 const router = Router();
-
-// Extract skills from job description text (généraliste, tous domaines)
-function extractSkillsFromText(text: string): string[] {
-  const commonSkills = [
-    // Soft skills & Management
-    'Leadership', 'Management', 'Communication', 'Négociation', 'Présentation',
-    'Gestion de projet', 'Gestion d\'équipe', 'Coordination', 'Organisation',
-    'Esprit d\'équipe', 'Autonomie', 'Rigueur', 'Créativité', 'Adaptabilité',
-    'Résolution de problèmes', 'Prise de décision', 'Analyse', 'Synthèse',
-
-    // Langues
-    'Anglais', 'Français', 'Espagnol', 'Allemand', 'Italien', 'Chinois', 'Arabe',
-    'Bilingue', 'Courant', 'Professionnel',
-
-    // Bureautique & Outils généraux
-    'Excel', 'Word', 'PowerPoint', 'Outlook', 'Office', 'Google Workspace',
-    'SAP', 'Salesforce', 'CRM', 'ERP', 'Notion', 'Trello', 'Slack', 'Teams',
-
-    // Finance & Comptabilité
-    'Comptabilité', 'Finance', 'Contrôle de gestion', 'Audit', 'Fiscalité',
-    'Budget', 'Reporting', 'Analyse financière', 'Trésorerie', 'Facturation',
-    'Paie', 'IFRS', 'Normes comptables',
-
-    // Marketing & Communication
-    'Marketing', 'Marketing digital', 'SEO', 'SEA', 'Community management',
-    'Réseaux sociaux', 'Content marketing', 'Brand management', 'E-commerce',
-    'Google Analytics', 'Publicité', 'Relations presse', 'Événementiel',
-
-    // Commercial & Vente
-    'Vente', 'Prospection', 'B2B', 'B2C', 'Négociation commerciale',
-    'Relation client', 'Fidélisation', 'Account management', 'Business development',
-
-    // RH & Juridique
-    'Recrutement', 'Formation', 'Droit du travail', 'Droit des affaires',
-    'Paie', 'GPEC', 'Relations sociales', 'Contrats',
-
-    // Industrie & Logistique
-    'Supply chain', 'Logistique', 'Achats', 'Approvisionnement', 'Stock',
-    'Production', 'Qualité', 'Lean', 'Six Sigma', 'ISO', 'HSE', 'Sécurité',
-    'Maintenance', 'CAO', 'AutoCAD', 'SolidWorks',
-
-    // Santé & Sciences
-    'Recherche', 'Laboratoire', 'Clinique', 'Réglementaire', 'Pharmacovigilance',
-    'BPF', 'GMP', 'Essais cliniques',
-
-    // Tech & IT (pour ne pas les exclure non plus)
-    'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'SQL', 'Cloud',
-    'AWS', 'Azure', 'Docker', 'Agile', 'Scrum', 'DevOps', 'Data', 'IA',
-    'Machine Learning', 'Cybersécurité', 'Développement web', 'Mobile',
-
-    // Méthodes & Certifications
-    'PMP', 'Prince2', 'ITIL', 'Agile', 'Scrum', 'Lean', 'Six Sigma',
-    'TOEIC', 'TOEFL', 'Certifié', 'Diplômé',
-  ];
-
-  const foundSkills: string[] = [];
-  const lowerText = text.toLowerCase();
-
-  for (const skill of commonSkills) {
-    if (lowerText.includes(skill.toLowerCase())) {
-      foundSkills.push(skill);
-    }
-  }
-
-  return [...new Set(foundSkills)];
-}
-
-// Configure multer to store files in memory
-const upload = multer({ storage: multer.memoryStorage() });
 
 // Initialize OpenAI client for Blackbox AI
 const openai = new OpenAI({
   baseURL: 'https://api.blackbox.ai',
   apiKey: process.env.BLACK_BOX_API_KEY || 'YOUR_API_KEY',
 });
+
+// Configure multer to store files in memory
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Zod Schema for CV data
 const cvSchema = z.object({
@@ -161,44 +96,85 @@ async function validateCVIntegrity(
 ): Promise<{ valid: boolean; issues: string[]; inventedItems: string[] }> {
   console.log('🛡️ Running AI Guardian validation...');
 
-  const validationPrompt = `You are a STRICT CV integrity validator. Your job is to detect ANY fabricated or invented information.
+  const validationPrompt = `Tu es un VALIDATEUR INTELLIGENT de CV. Ton rôle est de détecter les VRAIES INVENTIONS (mensonges) tout en acceptant les reformulations légitimes.
 
-Compare the ORIGINAL CV text with the OPTIMIZED CV JSON and identify any information that was INVENTED (not present in the original).
-
-=== ORIGINAL CV TEXT ===
+═══════════════════════════════════════════════════════════════
+CV ORIGINAL
+═══════════════════════════════════════════════════════════════
 ${originalText}
-=== END ORIGINAL CV ===
 
-=== OPTIMIZED CV JSON ===
+═══════════════════════════════════════════════════════════════
+CV OPTIMISÉ (à valider)
+═══════════════════════════════════════════════════════════════
 ${JSON.stringify(optimizedData, null, 2)}
-=== END OPTIMIZED CV ===
 
-CHECK FOR THESE VIOLATIONS:
-1. Companies or job titles that don't exist in the original
-2. Skills or technologies not mentioned or implied in the original
-3. Degrees, schools, or certifications not in the original
-4. Invented metrics, percentages, or numbers (e.g., "increased sales by 50%" when no such metric exists)
-5. Dates or locations that don't match the original
-6. Responsibilities or achievements that were completely fabricated
+═══════════════════════════════════════════════════════════════
+🚨 VIOLATIONS GRAVES (REJETER SI PRÉSENT)
+═══════════════════════════════════════════════════════════════
+❌ Entreprises inventées qui n'existent pas dans l'original
+❌ Diplômes ou certifications inventés
+❌ Métriques chiffrées inventées (%, €, "augmenté de X%")
+❌ Expériences professionnelles complètement fabriquées
+❌ Compétences techniques majeures non démontrables depuis l'original
+   (ex: si le CV ne mentionne jamais Python, ne pas ajouter "Expert Python")
 
-IMPORTANT:
-- Rephrasing is OK (e.g., "managed team" instead of "was team leader")
-- Reorganizing is OK
-- Using synonyms is OK
-- But INVENTING new facts is NOT OK
+═══════════════════════════════════════════════════════════════
+✅ REFORMULATIONS ACCEPTABLES (NE PAS REJETER)
+═══════════════════════════════════════════════════════════════
+Ces éléments sont des CLARIFICATIONS LÉGITIMES, pas des inventions:
 
-Return ONLY a JSON object (no markdown, no explanation):
+1. NIVEAUX DE LANGUE IMPLICITES:
+   - Lycée/études en France → "Français (langue maternelle)" = OK
+   - École française + pas d'indication contraire → Français natif = OK
+   - Contexte professionnel en anglais mentionné → "Anglais professionnel" = OK
+
+2. NIVEAUX DE COMPÉTENCE RAISONNABLES:
+   - Plusieurs années d'expérience avec une techno → "solides bases", "maîtrise" = OK
+   - Formation + projets dans un domaine → "compétences en X" = OK
+   - Stage/alternance → "expérience en" = OK
+
+3. TITRES DE POSTE DESCRIPTIFS:
+   - Activité freelance → "Développeur Freelance" ou "Mission Indépendante" = OK
+   - Projets personnels décrits → "Projet Personnel" = OK
+   - Travail non-salarié décrit → titre générique descriptif = OK
+
+4. REFORMULATIONS STYLISTIQUES:
+   - "j'ai fait des mods" → "Développement d'extensions" = OK
+   - "j'ai codé" → "Conception et développement" = OK
+   - Réorganisation de l'ordre des expériences = OK
+   - Regroupement de compétences par catégories = OK
+
+5. INFÉRENCES TECHNIQUES LOGIQUES:
+   - TypeScript mentionné → JavaScript implicite = OK
+   - React mentionné → JavaScript/HTML/CSS implicites = OK
+   - Développement backend mentionné → bases de données implicites = OK
+
+═══════════════════════════════════════════════════════════════
+PROCESSUS DE DÉCISION
+═══════════════════════════════════════════════════════════════
+Pour chaque élément du CV optimisé, demande-toi:
+1. Est-ce une INVENTION PURE (aucune base dans l'original) ? → VIOLATION
+2. Est-ce une CLARIFICATION d'information implicite ? → ACCEPTABLE
+3. Est-ce une REFORMULATION professionnelle ? → ACCEPTABLE
+4. Est-ce une INFÉRENCE LOGIQUE raisonnable ? → ACCEPTABLE
+
+En cas de doute sur une reformulation, ACCEPTE-LA si elle est raisonnable.
+Sois STRICT sur les inventions pures, TOLÉRANT sur les reformulations.
+
+═══════════════════════════════════════════════════════════════
+FORMAT DE RÉPONSE (JSON UNIQUEMENT)
+═══════════════════════════════════════════════════════════════
 {
   "valid": true/false,
-  "issues": ["description of each problem found"],
-  "inventedItems": ["specific invented item 1", "specific invented item 2"]
+  "issues": ["description de chaque VRAIE violation trouvée"],
+  "inventedItems": ["élément inventé 1", "élément inventé 2"]
 }
 
-If everything is legitimate, return: {"valid": true, "issues": [], "inventedItems": []}`;
+Si tout est légitime: {"valid": true, "issues": [], "inventedItems": []}`;
 
   try {
     const validation = await openaiClient.chat.completions.create({
-      model: 'blackboxai/openai/gpt-5.1',
+      model: 'blackboxai/openai/gpt-4o',
       messages: [
         { role: 'user', content: validationPrompt }
       ],
@@ -245,6 +221,9 @@ If everything is legitimate, return: {"valid": true, "issues": [], "inventedItem
 // Route to handle PDF upload with optional job URL
 // Expecting: 'cv' file + optional 'jobUrl' in body
 router.post('/', upload.single('cv'), async (req: Request, res: Response): Promise<void> => {
+  const totalStart = Date.now();
+  const timers: Record<string, number> = {};
+
   if (!req.file) {
     res.status(400).send('No file uploaded.');
     return;
@@ -264,23 +243,43 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
   try {
     // If job URL is provided, scrape it
   if (jobUrl && jobUrl.trim()) {
-    console.log('🔍 Scraping job posting from:', jobUrl);
+    const scrapeStart = Date.now();
+    console.log('🔍 [STEP 1] Scraping job posting from:', jobUrl);
     try {
       const scraper = getScraperForUrl(jobUrl);
       const job = await scraper.scrape(jobUrl);
       jobDescription = jobToText(job);
-      jobInfo = job;
+      timers['1_scraping'] = Date.now() - scrapeStart;
+      console.log(`⏱️ Scraping done in ${timers['1_scraping']}ms`);
+
+      // Extract skills using regex-based keyword matching (instant, no AI call)
+      const extractStart = Date.now();
+      console.log('🔍 [STEP 2] Extracting keywords...');
+      const extractedSkills = extractKeywords(jobDescription);
+      timers['2_keywords_extraction'] = Date.now() - extractStart;
+      console.log(`⏱️ Keywords extraction done in ${timers['2_keywords_extraction']}ms (${extractedSkills.length} found)`);
+
+      jobInfo = {
+        ...job,
+        skills: extractedSkills.length > 0 ? extractedSkills : job.skills,
+      };
       console.log(`✅ Job posting integrated: ${job.title} (${job.platform})`);
     } catch (error) {
       console.error('⚠️ Failed to scrape job, continuing without it:', error);
     }
   } else if (jobDescriptionText && jobDescriptionText.trim()) {
     // Use raw job description text provided by user
-    console.log('📝 Using provided job description text');
+    console.log('📝 [STEP 1] Using provided job description text');
     jobDescription = jobDescriptionText.trim();
+    timers['1_job_text'] = 0;
 
-    // Extract skills from the text for better optimization
-    const extractedSkills = extractSkillsFromText(jobDescription);
+    // Extract skills using regex-based keyword matching (instant, no AI call)
+    const extractStart = Date.now();
+    console.log('🔍 [STEP 2] Extracting keywords...');
+    const extractedSkills = extractKeywords(jobDescription);
+    timers['2_keywords_extraction'] = Date.now() - extractStart;
+    console.log(`⏱️ Keywords extraction done in ${timers['2_keywords_extraction']}ms (${extractedSkills.length} found)`);
+
     jobInfo = {
       title: 'Position',
       company: 'Company',
@@ -290,12 +289,16 @@ router.post('/', upload.single('cv'), async (req: Request, res: Response): Promi
   }
 
     // 1. Extract text from PDF
-    console.log('📄 Extracting text from CV...');
+    const pdfExtractStart = Date.now();
+    console.log('📄 [STEP 3] Extracting text from CV...');
     const pdfData = await pdfParse(req.file.buffer);
     const textContent = pdfData.text;
+    timers['3_pdf_extraction'] = Date.now() - pdfExtractStart;
+    console.log(`⏱️ PDF extraction done in ${timers['3_pdf_extraction']}ms`);
 
     // Don't send images to avoid API errors
-    console.log('📝 Preparing CV text for optimization...');
+    const optimizerStart = Date.now();
+    console.log('🤖 [STEP 4] Sending to Blackbox AI for optimization...');
 
     const userMessageContent = `Here is the resume text to optimize:
 
@@ -314,7 +317,7 @@ IMPORTANT: Reorganize and rephrase this resume to highlight relevant existing sk
     // 2. Send to Blackbox AI
     console.log('🤖 Sending to Blackbox AI for optimization...');
     const completion = await openai.chat.completions.create({
-      model: 'blackboxai/openai/gpt-5.1',
+      model: 'blackboxai/openai/gpt-4o',
       messages: [
         {
           role: 'system',
@@ -326,29 +329,59 @@ DO NOT add preambles or postambles.
 ONLY return the raw JSON object.
 
 ${jobDescription ? `
-🎯 IMPORTANT: A job posting has been provided. Follow these rules STRICTLY:
+🎯 OBJECTIF: Optimiser ce CV pour l'offre d'emploi fournie.
 
-ABSOLUTE RULES - NEVER BREAK THESE:
-- NEVER invent skills, experiences, or qualifications that are not in the original CV
-- NEVER add fake metrics, percentages, or numbers
-- NEVER claim certifications or degrees not mentioned in the CV
-- ONLY use information that exists in the original CV text
+═══════════════════════════════════════════════════════════════
+RÈGLES ABSOLUES - INTERDICTIONS STRICTES
+═══════════════════════════════════════════════════════════════
+❌ JAMAIS inventer des entreprises, postes ou missions qui n'existent pas
+❌ JAMAIS ajouter de métriques chiffrées (%, €, nombres) non présentes
+❌ JAMAIS inventer des certifications ou diplômes
+❌ JAMAIS créer de titres de poste formels pour des activités informelles
+   (si l'original dit "j'ai développé des mods", ne pas mettre "Développeur Mods Senior")
 
-WHAT YOU CAN DO:
-1. REORGANIZE: Put the most relevant existing experiences first based on the job posting
-2. REPHRASE: Use stronger action verbs (managed, developed, implemented, led, etc.)
-3. HIGHLIGHT: Emphasize existing skills that match the job requirements: ${jobInfo?.skills.slice(0, 5).join(', ') || 'relevant skills'}
-4. STRUCTURE: Better organize existing information into clear sections
-5. CLARIFY: Make existing descriptions more concise and professional
+═══════════════════════════════════════════════════════════════
+CE QUE TU PEUX FAIRE (REFORMULATIONS AUTORISÉES)
+═══════════════════════════════════════════════════════════════
+✅ RÉORGANISER: Mettre les expériences les plus pertinentes en premier
+✅ VERBES D'ACTION: Remplacer "j'ai fait" par "Développé", "Conçu", "Mis en œuvre"
+✅ SYNONYMES PROFESSIONNELS: "mods" → "extensions logicielles", "scripts" → "automatisations"
+✅ CLARIFIER les compétences implicites:
+   - Si quelqu'un a fait du dev TypeScript → il connaît JavaScript
+   - Si quelqu'un a un lycée français → Français langue maternelle est OK
+   - Si quelqu'un code depuis X années → "solides bases" ou "maîtrise" sont OK
+✅ STRUCTURER: Regrouper les compétences par catégorie logique
+✅ ADAPTER LE VOCABULAIRE au secteur visé (utiliser les termes de l'offre quand applicable)
 
-Keywords to look for in the CV: ${jobInfo?.skills.join(', ') || 'technical skills'}
-Target position: ${jobInfo?.title || 'the position'}
+═══════════════════════════════════════════════════════════════
+RÈGLES POUR LES TITRES DE POSTE
+═══════════════════════════════════════════════════════════════
+- Si l'original a un titre formel → le garder ou l'améliorer légèrement
+- Si l'original décrit une activité freelance/perso → utiliser un titre descriptif simple:
+  "Développeur Freelance", "Projet Personnel", "Mission Indépendante"
+- NE PAS inventer de titres pompeux ou de niveaux (Senior, Lead, Expert) non justifiés
+
+═══════════════════════════════════════════════════════════════
+RÈGLES POUR ÉVITER LES DOUBLONS D'EXPÉRIENCES
+═══════════════════════════════════════════════════════════════
+⚠️ IMPORTANT: Si plusieurs expériences sont très similaires (même période, même type d'activité):
+- FUSIONNER en une seule expérience avec un titre englobant
+- OU différencier clairement avec des descriptions DISTINCTES (technologies différentes, contextes différents)
+- JAMAIS avoir 2 expériences avec des descriptions quasi-identiques
+- Exemple: "Freelance pour PixelPoly" + "Freelance pour clients" sur la même période
+  → Fusionner en "Développeur Freelance (2023-2024)" avec les différents clients/missions en sous-points
+
+═══════════════════════════════════════════════════════════════
+CONTEXTE DE L'OFFRE
+═══════════════════════════════════════════════════════════════
+Poste visé: ${jobInfo?.title || 'le poste'}
+Mots-clés à mettre en valeur si présents dans le CV: ${jobInfo?.skills.join(', ') || 'compétences techniques'}
 ` : `
-Optimize this CV for ATS systems:
-- Use professional language and strong action verbs
-- Structure content clearly
-- NEVER invent or add information not present in the original CV
-- Only rephrase and reorganize existing content
+Optimise ce CV pour les systèmes ATS:
+- Utilise un langage professionnel et des verbes d'action
+- Structure clairement le contenu
+- JAMAIS inventer d'informations absentes du CV original
+- Reformuler et réorganiser uniquement le contenu existant
 `}
 
 REQUIRED JSON FORMAT (return ONLY this, no other text):
@@ -400,14 +433,16 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
     }
 
     // 3. Parse and Validate JSON
+    timers['4_optimizer'] = Date.now() - optimizerStart;
+    console.log(`⏱️ Optimizer done in ${timers['4_optimizer']}ms`);
     console.log('📋 Parsing AI response...');
-    
+
     // Clean the response more aggressively
     let cleanJson = aiContent
       .replace(/```json\n?|\n?```/g, '')  // Remove markdown code blocks
       .replace(/^[^{]*({[\s\S]*})[^}]*$/g, '$1')  // Extract only the JSON object
       .trim();
-    
+
     // If the response doesn't start with {, try to find the JSON
     if (!cleanJson.startsWith('{')) {
       const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
@@ -415,15 +450,15 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
         cleanJson = jsonMatch[0];
       }
     }
-    
+
     let parsedData;
     try {
         parsedData = JSON.parse(cleanJson);
     } catch (e) {
         console.error('Failed to parse JSON from AI. Raw response:', aiContent.substring(0, 500));
         console.error('Cleaned JSON attempt:', cleanJson.substring(0, 500));
-        res.status(500).json({ 
-          error: 'AI response was not valid JSON', 
+        res.status(500).json({
+          error: 'AI response was not valid JSON',
           raw: aiContent.substring(0, 1000),
           cleaned: cleanJson.substring(0, 1000)
         });
@@ -433,8 +468,11 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
     const validatedData = cvSchema.parse(parsedData);
 
     // 4. AI Guardian - Validate CV integrity (strict mode - no auto-correction)
-    console.log('🛡️ Guardian validation...');
+    const guardianStart = Date.now();
+    console.log('🛡️ [STEP 5] Guardian validation...');
     const guardianResult = await validateCVIntegrity(textContent, validatedData, openai);
+    timers['5_guardian'] = Date.now() - guardianStart;
+    console.log(`⏱️ Guardian done in ${timers['5_guardian']}ms`);
 
     if (!guardianResult.valid) {
       console.log('🚫 Guardian rejected CV - mismatch between CV and job offer');
@@ -458,7 +496,8 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
     console.log(`📊 Stats: ${stats.keywordsMatched.length} keywords matched, ${stats.sectionsOptimized} sections optimized`);
 
     // 6. Generate New PDF
-    console.log('📄 Generating optimized PDF...');
+    const pdfGenStart = Date.now();
+    console.log('📄 [STEP 6] Generating optimized PDF...');
     const outputFilename = `cv_optimized_${Date.now()}.pdf`;
     const outputPath = path.join(process.cwd(), 'uploads', outputFilename);
 
@@ -470,6 +509,20 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
 
     const generator = new ModernATS_CVGenerator(outputPath);
     await generator.generate(validatedData);
+    timers['6_pdf_generation'] = Date.now() - pdfGenStart;
+    console.log(`⏱️ PDF generation done in ${timers['6_pdf_generation']}ms`);
+
+    // Log total time and breakdown
+    const totalTime = Date.now() - totalStart;
+    console.log('\n📊 ═══════════════════════════════════════');
+    console.log('⏱️  PIPELINE TIMING SUMMARY');
+    console.log('═══════════════════════════════════════');
+    Object.entries(timers).sort().forEach(([step, time]) => {
+      console.log(`   ${step}: ${time}ms`);
+    });
+    console.log('───────────────────────────────────────');
+    console.log(`   TOTAL: ${totalTime}ms (${(totalTime / 1000).toFixed(1)}s)`);
+    console.log('═══════════════════════════════════════\n');
 
     console.log('✅ CV optimized successfully!');
     console.log(`📊 Optimized for: ${jobInfo ? `"${jobInfo.title}" at ${jobInfo.company}` : 'General ATS optimization'}`);

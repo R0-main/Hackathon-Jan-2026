@@ -359,19 +359,23 @@ const LoadingStep = () => {
     t('step2Loading'),
     t('step3Loading'),
     t('step4Loading'),
+    t('step5Loading'),
   ];
 
-  // Progression calibrée sur le temps réel du backend (sans re-optimisation):
-  // - Scraping job (si URL): ~3-5s
-  // - Extraction PDF + Appel API Blackbox: ~5-15s
-  // - Guardian validation: ~3-5s
-  // - Génération PDF: ~1s
-  // Total typique: 15-25s
+  // Progression calibrée sur les vrais temps mesurés du backend (avec gpt-4o):
+  // - Scraping + lecture profil: ~15-25s (variable)
+  // - Extraction mots-clés (regex): instantané
+  // - Optimisation CV (IA gpt-4o): ~8s
+  // - Validation Guardian (IA gpt-4o): ~4s
+  // - Génération PDF: instantané
+  // Total typique: ~30-40s
+  // Chaque étape dure au moins 1.5s pour une meilleure UX
   useEffect(() => {
     const timers = [
-      setTimeout(() => setCurrentStep(1), 4000),   // 4s -> Optimisation IA
-      setTimeout(() => setCurrentStep(2), 12000),  // 12s -> Validation Guardian
-      setTimeout(() => setCurrentStep(3), 18000),  // 18s -> Génération PDF
+      setTimeout(() => setCurrentStep(1), 3000),    // 3s -> Analyse mots-clés
+      setTimeout(() => setCurrentStep(2), 5000),    // 5s -> Optimisation (2s sur étape 2)
+      setTimeout(() => setCurrentStep(3), 18000),   // 18s -> Vérification (13s sur étape 3)
+      setTimeout(() => setCurrentStep(4), 24000),   // 24s -> Mise en page (6s sur étape 4)
     ];
     return () => timers.forEach(t => clearTimeout(t));
   }, []);
