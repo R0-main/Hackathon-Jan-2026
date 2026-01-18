@@ -257,7 +257,7 @@ const JobOfferStep = ({
   error?: string | null;
 }) => {
   const { t } = useI18n();
-  const [inputMode, setInputMode] = useState<'text' | 'url'>('text');
+  const [inputMode, setInputMode] = useState<'text' | 'url'>('url');
 
   const canProceed = inputMode === 'text' ? jobOffer.trim().length > 50 : jobUrl.trim().length > 0;
 
@@ -278,18 +278,18 @@ const JobOfferStep = ({
 
       <div className="input-mode-toggle">
         <button
-          className={`mode-btn ${inputMode === 'text' ? 'mode-btn-active' : ''}`}
-          onClick={() => setInputMode('text')}
-        >
-          <FileText size={18} />
-          {t('jobText')}
-        </button>
-        <button
           className={`mode-btn ${inputMode === 'url' ? 'mode-btn-active' : ''}`}
           onClick={() => setInputMode('url')}
         >
           <Link size={18} />
           {t('jobUrl')}
+        </button>
+        <button
+          className={`mode-btn ${inputMode === 'text' ? 'mode-btn-active' : ''}`}
+          onClick={() => setInputMode('text')}
+        >
+          <FileText size={18} />
+          {t('jobText')}
         </button>
       </div>
 
