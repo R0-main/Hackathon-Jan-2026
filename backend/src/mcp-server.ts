@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
 import { CVProcessor, cvSchema } from "./CV/cv-processor";
+import { getScraperForUrl, jobToText } from "./scrapers/index";
 import fs from "fs";
 import path from "path";
 
@@ -86,6 +87,48 @@ mcpServer.registerTool(
             ],
             isError: true
         }
+    }
+  }
+);
+
+mcpServer.registerTool(
+  "fetch_job_data",
+  {
+    description: "Fetches job posting data from LinkedIn, Indeed, or Welcome to the Jungle URLs. Returns structured job information including title, company, requirements, and skills.",
+    inputSchema: {
+      url: z.string().url().describe("The URL of the job posting to fetch"),
+    },
+  },
+  async ({ url }) => {
+    try {
+      const scraper = getScraperForUrl(url);
+      const jobData = await scraper.scrape(url);
+      
+      console.log(`[MCP FETCH JOB] Successfully fetched job from ${jobData.platform}: ${jobData.title}`);
+      
+      // Format the job data as text for the LLM
+      const jobText = jobToText(jobData);
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: `# 📋 Job Posting Fetched\n\n${jobText}`,
+          },
+        ],
+        structuredContent: jobData,
+      };
+    } catch (error: any) {
+      console.error(`[MCP FETCH JOB ERROR] ${error.message}`);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Failed to fetch job data: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
     }
   }
 );
