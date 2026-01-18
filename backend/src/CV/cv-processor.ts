@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
-import { PDFParse } from 'pdf-parse';
+import pdfParse from 'pdf-parse';
 import path from 'path';
 import fs from 'fs';
 import { ModernATS_CVGenerator } from './cv-creator';
@@ -67,8 +67,7 @@ export class CVProcessor {
    */
   async processCV(pdfBuffer: Buffer): Promise<string> {
     // 1. Extract text from PDF
-    const parser = new PDFParse({ data: pdfBuffer });
-    const pdfData = await parser.getText();
+    const pdfData = await pdfParse(pdfBuffer);
     const textContent = pdfData.text;
 
     // Convert PDF to images
