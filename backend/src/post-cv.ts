@@ -83,20 +83,56 @@ function computeStats(
 
 // Schema for validation response
 const validationSchema = z.object({
+  profileRelevant: z.boolean(),
+  relevanceReason: z.string(),
   valid: z.boolean(),
   issues: z.array(z.string()),
   inventedItems: z.array(z.string()).optional(),
 });
 
-// AI Guardian: Validates that the optimized CV doesn't contain invented information
+// AI Guardian: Validates CV-Job relevance AND that the optimized CV doesn't contain invented information
 async function validateCVIntegrity(
   originalText: string,
   optimizedData: z.infer<typeof cvSchema>,
-  openaiClient: OpenAI
-): Promise<{ valid: boolean; issues: string[]; inventedItems: string[] }> {
+  openaiClient: OpenAI,
+  jobDescription?: string,
+  jobTitle?: string
+): Promise<{ profileRelevant: boolean; relevanceReason: string; valid: boolean; issues: string[]; inventedItems: string[] }> {
   console.log('🛡️ Running AI Guardian validation...');
 
-  const validationPrompt = `Tu es un VALIDATEUR INTELLIGENT de CV. Ton rôle est de détecter les VRAIES INVENTIONS (mensonges) tout en acceptant les reformulations légitimes.
+  const validationPrompt = `Tu es un VALIDATEUR INTELLIGENT de CV. Tu as DEUX missions:
+
+═══════════════════════════════════════════════════════════════
+🎯 MISSION 1: ÉVALUER LA PERTINENCE DU PROFIL POUR L'OFFRE
+═══════════════════════════════════════════════════════════════
+${jobDescription ? `
+OFFRE D'EMPLOI VISÉE:
+${jobTitle ? `Poste: ${jobTitle}` : ''}
+${jobDescription}
+
+QUESTION CRITIQUE: Le profil du candidat est-il PERTINENT pour cette offre ?
+
+CRITÈRES DE PERTINENCE:
+✅ PERTINENT si:
+- Le candidat a au moins 30% des compétences clés demandées
+- L'expérience du candidat est dans un domaine connexe
+- Le niveau d'expérience est cohérent (junior pour poste junior, etc.)
+- Les technologies/outils utilisés sont similaires ou transférables
+
+❌ NON PERTINENT si:
+- Le profil est dans un domaine complètement différent (ex: boulanger pour dev)
+- Aucune compétence technique demandée n'est présente ou transférable
+- Le niveau d'expérience est totalement inadapté (ex: étudiant pour poste de directeur)
+- Les technologies sont incompatibles et non transférables
+
+IMPORTANT: Sois RAISONNABLE. Un développeur JavaScript peut postuler à un poste TypeScript.
+Un étudiant en informatique peut postuler à un stage dev même sans expérience pro.
+` : 'Pas d\'offre fournie - considérer le profil comme pertinent par défaut.'}
+
+═══════════════════════════════════════════════════════════════
+🎯 MISSION 2: DÉTECTER LES INVENTIONS (si profil pertinent)
+═══════════════════════════════════════════════════════════════
+Ton rôle est de détecter les VRAIES INVENTIONS (mensonges) tout en acceptant les reformulations légitimes.
 
 ═══════════════════════════════════════════════════════════════
 CV ORIGINAL
@@ -165,12 +201,20 @@ Sois STRICT sur les inventions pures, TOLÉRANT sur les reformulations.
 FORMAT DE RÉPONSE (JSON UNIQUEMENT)
 ═══════════════════════════════════════════════════════════════
 {
+  "profileRelevant": true/false,
+  "relevanceReason": "Explication courte de pourquoi le profil est ou n'est pas pertinent pour l'offre",
   "valid": true/false,
   "issues": ["description de chaque VRAIE violation trouvée"],
   "inventedItems": ["élément inventé 1", "élément inventé 2"]
 }
 
-Si tout est légitime: {"valid": true, "issues": [], "inventedItems": []}`;
+RÈGLES:
+- Si profileRelevant est FALSE, valid doit aussi être FALSE
+- Si pas d'offre fournie, profileRelevant = true par défaut
+- relevanceReason doit être en français et faire 1-2 phrases max
+
+Exemple profil pertinent: {"profileRelevant": true, "relevanceReason": "Le candidat a de l'expérience en développement web et maîtrise plusieurs technologies demandées.", "valid": true, "issues": [], "inventedItems": []}
+Exemple profil non pertinent: {"profileRelevant": false, "relevanceReason": "Le candidat est comptable sans aucune expérience en développement logiciel.", "valid": false, "issues": ["Profil incompatible avec l'offre"], "inventedItems": []}`;
 
   try {
     const validation = await openaiClient.chat.completions.create({
@@ -184,7 +228,7 @@ Si tout est légitime: {"valid": true, "issues": [], "inventedItems": []}`;
     const content = validation.choices[0].message.content;
     if (!content) {
       console.log('⚠️ Guardian returned empty response, assuming valid');
-      return { valid: true, issues: [], inventedItems: [] };
+      return { profileRelevant: true, relevanceReason: 'Validation automatique (réponse vide)', valid: true, issues: [], inventedItems: [] };
     }
 
     // Clean and parse response
@@ -200,14 +244,19 @@ Si tout est légitime: {"valid": true, "issues": [], "inventedItems": []}`;
     const result = JSON.parse(cleanJson);
     const validated = validationSchema.parse(result);
 
-    if (!validated.valid) {
+    if (!validated.profileRelevant) {
+      console.log('🚫 Guardian: Profile NOT relevant for job offer');
+      console.log('📝 Reason:', validated.relevanceReason);
+    } else if (!validated.valid) {
       console.log('🚨 Guardian detected issues:', validated.issues);
       console.log('🚨 Invented items:', validated.inventedItems);
     } else {
-      console.log('✅ Guardian validation passed - No invented content detected');
+      console.log('✅ Guardian validation passed - Profile relevant & no invented content');
     }
 
     return {
+      profileRelevant: validated.profileRelevant,
+      relevanceReason: validated.relevanceReason,
       valid: validated.valid,
       issues: validated.issues,
       inventedItems: validated.inventedItems || []
@@ -215,7 +264,7 @@ Si tout est légitime: {"valid": true, "issues": [], "inventedItems": []}`;
   } catch (error) {
     console.error('⚠️ Guardian validation error:', error);
     // On error, we allow the CV through but log the issue
-    return { valid: true, issues: ['Validation check could not be completed'], inventedItems: [] };
+    return { profileRelevant: true, relevanceReason: 'Validation automatique (erreur)', valid: true, issues: ['Validation check could not be completed'], inventedItems: [] };
   }
 }
 
@@ -468,27 +517,49 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
 
     const validatedData = cvSchema.parse(parsedData);
 
-    // 4. AI Guardian - Validate CV integrity (strict mode - no auto-correction)
+    // 4. AI Guardian - Validate CV-Job relevance AND CV integrity
     const guardianStart = Date.now();
     console.log('🛡️ [STEP 5] Guardian validation...');
-    const guardianResult = await validateCVIntegrity(textContent, validatedData, openai);
+    const guardianResult = await validateCVIntegrity(
+      textContent,
+      validatedData,
+      openai,
+      jobDescription || undefined,
+      jobInfo?.title || undefined
+    );
     timers['5_guardian'] = Date.now() - guardianStart;
     console.log(`⏱️ Guardian done in ${timers['5_guardian']}ms`);
 
-    if (!guardianResult.valid) {
-      console.log('🚫 Guardian rejected CV - mismatch between CV and job offer');
-      console.log('Issues:', guardianResult.issues);
+    // Check profile relevance FIRST
+    if (!guardianResult.profileRelevant) {
+      console.log('🚫 Guardian rejected CV - Profile not relevant for job offer');
+      console.log('📝 Reason:', guardianResult.relevanceReason);
 
       res.status(400).json({
         success: false,
-        error: 'CV_JOB_MISMATCH',
-        message: 'L\'offre d\'emploi semble trop eloignee de votre profil actuel pour une optimisation pertinente.',
-        suggestion: 'Veuillez essayer avec une offre plus proche de vos competences, ou mettre a jour votre CV avec des experiences pertinentes.',
+        error: 'PROFILE_NOT_RELEVANT',
+        message: guardianResult.relevanceReason || 'Votre profil ne semble pas correspondre à cette offre d\'emploi.',
+        suggestion: 'Veuillez essayer avec une offre plus proche de vos compétences et expériences actuelles.',
       });
       return;
     }
 
-    console.log('✅ Guardian validation passed');
+    // Then check for invented content
+    if (!guardianResult.valid) {
+      console.log('🚫 Guardian rejected CV - Invented content detected');
+      console.log('Issues:', guardianResult.issues);
+
+      res.status(400).json({
+        success: false,
+        error: 'CV_INTEGRITY_ISSUE',
+        message: 'L\'optimisation a détecté des incohérences.',
+        issues: guardianResult.issues,
+        inventedItems: guardianResult.inventedItems,
+      });
+      return;
+    }
+
+    console.log('✅ Guardian validation passed - Profile relevant & CV integrity OK');
 
     // 5. Compute real stats
     const jobSkills = jobInfo?.skills || [];
