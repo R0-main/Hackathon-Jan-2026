@@ -36,8 +36,9 @@ export interface CVData {
 
 export class ModernATS_CVGenerator {
     private doc: PDFKit.PDFDocument;
-    private writeStream: fs.WriteStream;
-    private filename: string;
+    private writeStream?: fs.WriteStream;
+    private filename?: string;
+    private buffers: Buffer[] = [];
 
     // Colors
     private primaryColor = '#2C3E50';
@@ -49,7 +50,7 @@ export class ModernATS_CVGenerator {
     private marginY = 50;
     private contentWidth = 595.28 - 120; // A4 Width (595.28) - 2*marginX
 
-    constructor(filename: string) {
+    constructor(filename?: string) {
         this.filename = filename;
         this.doc = new PDFDocument({
             size: 'A4',
@@ -57,18 +58,19 @@ export class ModernATS_CVGenerator {
             autoFirstPage: true
         });
 
-        // Set left and right margins specifically if needed, 
-        // but PDFDocument 'margin' usually applies to all. 
-        // We'll use marginX for our internal calculations.
+        if (filename) {
+            this.writeStream = fs.createWriteStream(filename);
+            this.doc.pipe(this.writeStream);
+        }
 
-        this.writeStream = fs.createWriteStream(filename);
-        this.doc.pipe(this.writeStream);
+        // Collect buffers
+        this.doc.on('data', this.buffers.push.bind(this.buffers));
     }
 
     /**
      * Main method to generate the PDF from the provided data.
      */
-    public async generate(data: CVData): Promise<void> {
+    public async generate(data: CVData): Promise<Buffer> {
         this.addHeader(data.header.name, data.header.title, data.header.contact);
 
         if (data.summary) {
@@ -222,13 +224,26 @@ export class ModernATS_CVGenerator {
         }
     }
 
-    private build(): Promise<void> {
+    private build(): Promise<Buffer> {
         return new Promise((resolve, reject) => {
-            this.writeStream.on('finish', () => {
-                console.log(`✅ PDF generated successfully: ${this.filename}`);
-                resolve();
+            this.doc.on('end', () => {
+                const pdfBuffer = Buffer.concat(this.buffers);
+                resolve(pdfBuffer);
             });
-            this.writeStream.on('error', reject);
+
+            this.doc.on('error', reject);
+
+            // If we are writing to a file, we also want to wait for that to finish
+            // but the 'end' event on doc is sufficient for the buffer.
+            if (this.writeStream) {
+                this.writeStream.on('finish', () => {
+                    console.log(`✅ PDF generated successfully: ${this.filename}`);
+                });
+                this.writeStream.on('error', (err) => {
+                    console.error('Error writing PDF file:', err);
+                });
+            }
+            
             this.doc.end();
         });
     }

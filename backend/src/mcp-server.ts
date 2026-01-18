@@ -57,12 +57,7 @@ mcpServer.registerTool(
   },
   async (args) => {
     try {
-        const outputPath = await processor.generatePDF(args);
-        
-        // Construct a URL for the generated file
-        const filename = path.basename(outputPath);
-        const baseUrl = process.env.BASE_URL || `http://localhost:3000`;
-        const downloadUrl = `${baseUrl}/assets/${filename}`;
+        const downloadUrl = await processor.generatePDF(args);
         
         return {
           content: [

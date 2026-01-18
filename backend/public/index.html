@@ -108,7 +108,7 @@
         const render = () => {
             if (downloadUrl) {
                 // Add timestamp to prevent caching and force reload
-                iframeEl.src = `${downloadUrl}?t=${new Date().getTime()}`;
+                iframeEl.src = downloadUrl;
                 
                 containerEl.style.display = 'block';
                 placeholderEl.style.display = 'none';

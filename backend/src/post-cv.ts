@@ -8,8 +8,21 @@ import { getScraperForUrl, jobToText } from './scrapers';
 import { extractKeywords } from './keywords';
 import path from 'path';
 import fs from 'fs';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 const router = Router();
+
+console.log('🚀 Initializing CV optimization route...');
+
+// Initialize S3 Client
+const region = (process.env.S3_REGION || process.env.AWS_REGION || 'eu-central-1').trim();
+const s3Client = new S3Client({
+  region: region,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY || '',
+  },
+});
 
 // Initialize OpenAI client for Blackbox AI
 const openai = new OpenAI({
@@ -499,19 +512,33 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
     // 6. Generate New PDF
     const pdfGenStart = Date.now();
     console.log('📄 [STEP 6] Generating optimized PDF...');
-    const outputFilename = `cv_optimized_${Date.now()}.pdf`;
-    const outputPath = path.join(process.cwd(), 'uploads', outputFilename);
-
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    const generator = new ModernATS_CVGenerator(outputPath);
-    await generator.generate(validatedData);
+    
+    // In-memory generation
+    const generator = new ModernATS_CVGenerator();
+    const pdfBuffer = await generator.generate(validatedData);
     timers['6_pdf_generation'] = Date.now() - pdfGenStart;
     console.log(`⏱️ PDF generation done in ${timers['6_pdf_generation']}ms`);
+
+    // 7. Upload to S3
+    const uploadStart = Date.now();
+    console.log('☁️ [STEP 7] Uploading to AWS S3...');
+    const outputFilename = `cv_optimized_${Date.now()}.pdf`;
+    
+    const bucketName = process.env.S3_BUCKET_NAME || process.env.AWS_BUCKET_NAME || 'hackathon-cv-uploads';
+
+    try {
+        await s3Client.send(new PutObjectCommand({
+            Bucket: bucketName,
+            Key: outputFilename,
+            Body: pdfBuffer,
+            ContentType: 'application/pdf',
+        }));
+        timers['7_s3_upload'] = Date.now() - uploadStart;
+        console.log(`⏱️ S3 upload done in ${timers['7_s3_upload']}ms`);
+    } catch (err) {
+        console.error('❌ Failed to upload to S3:', err);
+        // Continue to return the PDF even if upload fails
+    }
 
     // Log total time and breakdown
     const totalTime = Date.now() - totalStart;
@@ -528,11 +555,9 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
     console.log('✅ CV optimized successfully!');
     console.log(`📊 Optimized for: ${jobInfo ? `"${jobInfo.title}" at ${jobInfo.company}` : 'General ATS optimization'}`);
 
-    // 7. Read PDF and convert to base64
-    const pdfBuffer = fs.readFileSync(outputPath);
+    // 8. Return JSON response with stats and PDF
     const pdfBase64 = pdfBuffer.toString('base64');
 
-    // 8. Return JSON response with stats and PDF
     res.json({
       success: true,
       stats: {
@@ -546,11 +571,6 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
         base64: pdfBase64,
         filename: `CV_Optimized${jobInfo?.company ? `_${jobInfo.company.replace(/\s+/g, '_')}` : ''}.pdf`,
       }
-    });
-
-    // Cleanup: delete file after sending (optional, keep for debugging)
-    fs.unlink(outputPath, (err: Error | null) => {
-      if (err) console.error('Error deleting temp file:', err);
     });
 
   } catch (error) {
