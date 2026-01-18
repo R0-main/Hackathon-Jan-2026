@@ -116,7 +116,7 @@ mcpServer.registerTool(
             text: `# 📋 Job Posting Fetched\n\n${jobText}`,
           },
         ],
-        structuredContent: jobData,
+        structuredContent: jobData as unknown as Record<string, unknown>,
       };
     } catch (error: any) {
       console.error(`[MCP FETCH JOB ERROR] ${error.message}`);
