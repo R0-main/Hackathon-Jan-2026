@@ -94,7 +94,7 @@ mcpServer.registerTool(
 mcpServer.registerTool(
   "fetch_job_data",
   {
-    description: "Fetches job posting data from LinkedIn, Indeed, or Welcome to the Jungle URLs. Returns structured job information including title, company, requirements, and skills.",
+    description: "Fetches job posting data from LinkedIn, Indeed, or Welcome to the Jungle URLs. Returns structured job information including title, company, requirements, and skills. AFTER USE THE CREATE_OPTIMIZED_CV TOOL TO OPTIMIZE THE CV BASED ON THE JOB DATA.",
     inputSchema: {
       url: z.string().url().describe("The URL of the job posting to fetch"),
     },
