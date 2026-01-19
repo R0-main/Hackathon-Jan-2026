@@ -18,7 +18,7 @@
 
 This project exposes a **Model Context Protocol (MCP) Server**, allowing AI agents to interact directly with our CV optimization engine.
 
-**MCP Server Available:** [https://hackathon-jan-2026-aa1aa065.alpic.live/mcp](https://hackathon-jan-2026-aa1aa065.alpic.live/mcp) (using Alpic)
+**MCP Server Available:** [https://hackathon-jan-2026-aa1aa065.alpic.live/mcp](https://hackathon-jan-2026-aa1aa065.alpic.live/mcp) (using [Alpic](https://alpic.ai/))
 
 ### ChatGPT App Integration
 We have a dedicated **ChatGPT App** that leverages this MCP server. This allows you to:
