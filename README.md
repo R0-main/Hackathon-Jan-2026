@@ -4,7 +4,7 @@
 
 🌐 **Try it now:** [hackyourcv.fr](https://hackyourcv.fr)
 
-![Diagram](assets/diagrame.png)
+![Diagram](./assets/diagrame.png)
 
 ## ✨ Features
 
