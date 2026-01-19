@@ -4,6 +4,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import './CVFlow.css';
 import { useI18n } from './i18n';
+import LoadingStep from './LoadingStep';
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -355,74 +356,7 @@ ${t('example')}
   );
 };
 
-// Step 3: Loading
-const LoadingStep = () => {
-  const { t } = useI18n();
-  const [currentStep, setCurrentStep] = useState(0);
-
-  const steps = [
-    t('step1Loading'),
-    t('step2Loading'),
-    t('step3Loading'),
-    t('step4Loading'),
-    t('step5Loading'),
-  ];
-
-  // Progression calibrée sur les vrais temps mesurés du backend (avec gpt-4o):
-  // - Scraping + lecture profil: ~15-25s (variable)
-  // - Extraction mots-clés (regex): instantané
-  // - Optimisation CV (IA gpt-4o): ~8s
-  // - Validation Guardian (IA gpt-4o): ~4s
-  // - Génération PDF: instantané
-  // Total typique: ~30-40s
-  // Chaque étape dure au moins 1.5s pour une meilleure UX
-  useEffect(() => {
-    const timers = [
-      setTimeout(() => setCurrentStep(1), 3000),    // 3s -> Analyse mots-clés
-      setTimeout(() => setCurrentStep(2), 5000),    // 5s -> Optimisation (2s sur étape 2)
-      setTimeout(() => setCurrentStep(3), 18000),   // 18s -> Vérification (13s sur étape 3)
-      setTimeout(() => setCurrentStep(4), 24000),   // 24s -> Mise en page (6s sur étape 4)
-    ];
-    return () => timers.forEach(t => clearTimeout(t));
-  }, []);
-
-  return (
-    <div className="step-container loading-container">
-      <div className="loading-visual">
-        <div className="loading-spinner">
-          <div className="spinner-ring"></div>
-          <div className="spinner-ring"></div>
-          <div className="spinner-ring"></div>
-        </div>
-      </div>
-
-      <div className="loading-content">
-        <h1>{t('generatingCV')}</h1>
-        <p>{t('aiAnalyzing')}</p>
-
-        <div className="loading-steps">
-          {steps.map((label, index) => (
-            <div
-              key={index}
-              className={`loading-step ${index < currentStep ? 'loading-step-done' : ''} ${index === currentStep ? 'loading-step-active' : ''}`}
-            >
-              <div className="loading-step-icon">
-                {index < currentStep ? <Check size={14} /> : <div className="loading-step-dot"></div>}
-              </div>
-              <span>{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <p className="loading-disclaimer">
-        {t('usuallyTakes')}
-      </p>
-    </div>
-  );
-};
-
-// Step 4: Preview & Validate
+// Step 3: Preview & Validate
 const PreviewStep = ({
   pdfUrl,
   onValidate,
@@ -546,7 +480,7 @@ const PreviewStep = ({
   );
 };
 
-// Step 5: Result
+// Step 4: Result
 const ResultStep = ({
   pdfUrl,
   stats,
