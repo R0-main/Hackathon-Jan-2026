@@ -6,8 +6,6 @@ import pdfParse from 'pdf-parse';
 import { ModernATS_CVGenerator } from './CV/cv-creator';
 import { getScraperForUrl, jobToText } from './scrapers';
 import { extractKeywords } from './keywords';
-import path from 'path';
-import fs from 'fs';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 const router = Router();
@@ -92,164 +90,6 @@ function computeStats(
     keywordsMatched: [...new Set(keywordsMatched)],
     sectionsOptimized
   };
-}
-
-// Schema for validation response with evidence-based format
-const validationSchema = z.object({
-  valid: z.boolean(),
-  issues: z.array(z.string()).default([]),
-  inventedItems: z.array(z.object({
-    path: z.string(),
-    value: z.string(),
-    evidenceType: z.enum(['QUOTE', 'NOT_FOUND']),
-    evidence: z.string(), // Verbatim quote from original CV, or "NOT FOUND"
-  })).default([]),
-});
-
-// AI Guardian: Validates that the optimized CV doesn't contain invented information
-async function validateCVIntegrity(
-  originalText: string,
-  optimizedData: z.infer<typeof cvSchema>,
-  openaiClient: OpenAI
-): Promise<{ valid: boolean; issues: string[]; inventedItems: Array<{ path: string; value: string; evidenceType: 'QUOTE' | 'NOT_FOUND'; evidence: string }> }> {
-  console.log('🛡️ Running AI Guardian validation...');
-
-  const validationPrompt = `Tu es un VALIDATEUR de CV optimisé. Tu dois distinguer les FAITS (strict) des éléments de STYLE/PERSONNALISATION (tolérant).
-
-═══════════════════════════════════════════════════════════════
-CV ORIGINAL
-═══════════════════════════════════════════════════════════════
-${originalText}
-
-═══════════════════════════════════════════════════════════════
-CV OPTIMISÉ (à valider)
-═══════════════════════════════════════════════════════════════
-${JSON.stringify(optimizedData, null, 2)}
-
-═══════════════════════════════════════════════════════════════
-🔴 FACTS - ÊTRE STRICT (rejeter si inventé)
-═══════════════════════════════════════════════════════════════
-Ces éléments DANS LES EXPÉRIENCES/ÉDUCATION doivent être vérifiables:
-- Noms d'entreprises passées (dans experience[].company)
-- Titres de poste passés (dans experience[].title)
-- Dates et durées d'emploi
-- Diplômes, certifications, formations
-- Métriques chiffrées inventées (%, €, "augmenté de X%")
-- Technologies/compétences NON présentes dans l'original
-- Projets ou missions spécifiques inventés
-
-⚠️ VIOLATION = inventer une expérience, entreprise, diplôme, ou métrique
-
-═══════════════════════════════════════════════════════════════
-🟢 STYLE/PERSONNALISATION - TOUJOURS ACCEPTER (JAMAIS REJETER)
-═══════════════════════════════════════════════════════════════
-Ces éléments sont des adaptations LÉGITIMES au poste visé:
-
-✅ header.title → C'est le TITRE ACTUEL/VISÉ du candidat, PAS un poste passé!
-   - PEUT être "Consultant Junior en Cybersécurité" même si ce n'était pas dans l'original
-   - PEUT être "Développeur Fullstack" même si l'original disait "Développeur"
-   - PEUT être adapté au poste visé → JAMAIS une violation
-   - ⚠️ NE PAS CONFONDRE avec experience[].title qui sont les postes PASSÉS
-
-✅ summary → Peut mentionner:
-   - L'entreprise cible
-   - Le poste visé
-   - Des compétences SI elles existent dans le CV original
-   - Des termes du secteur (logiciels embarqués, IA, cloud) SI liés aux skills existants
-
-✅ Verbes d'action et reformulations professionnelles
-✅ Ordre des expériences/skills réorganisé
-✅ Regroupement par catégories
-
-═══════════════════════════════════════════════════════════════
-✅ IMPLICATIONS TECHNIQUES AUTORISÉES
-═══════════════════════════════════════════════════════════════
-- C/C++ → logiciels embarqués, systèmes OK
-- TypeScript → JavaScript OK
-- React/Vue/Angular → JavaScript, HTML, CSS OK
-- Node.js → JavaScript, Backend OK
-- Python → scripting, automatisation OK
-
-═══════════════════════════════════════════════════════════════
-⚠️ CE QUI N'EST PAS UNE VIOLATION
-═══════════════════════════════════════════════════════════════
-- header.title adapté au poste → OK
-- summary qui mentionne l'entreprise cible → OK
-- summary qui reformule les compétences existantes → OK
-- Termes du domaine (embedded, cloud, etc.) SI skills de base présents → OK
-
-═══════════════════════════════════════════════════════════════
-FORMAT DE RÉPONSE
-═══════════════════════════════════════════════════════════════
-{
-  "valid": true/false,
-  "issues": ["description courte de chaque VRAIE violation"],
-  "inventedItems": [
-    {
-      "path": "experience[0].company",
-      "value": "Acme Corp",
-      "evidenceType": "NOT_FOUND",
-      "evidence": "NOT FOUND"
-    }
-  ]
-}
-
-RAPPEL CRITIQUE:
-- header.title = titre ACTUEL/VISÉ → JAMAIS une violation, même s'il est différent de l'original
-- summary personnalisé → JAMAIS une violation
-- Seuls les FAITS inventés (expériences passées, entreprises, diplômes, métriques) sont des violations
-
-Si tout est OK: {"valid": true, "issues": [], "inventedItems": []}`;
-
-  try {
-    const validation = await openaiClient.chat.completions.create({
-      model: 'blackboxai/openai/gpt-4o',
-      messages: [
-        { role: 'user', content: validationPrompt }
-      ],
-      temperature: 0.1,
-    });
-
-    const content = validation.choices[0].message.content;
-    if (!content) {
-      console.log('🚨 Guardian returned empty response (fail-closed)');
-      return { valid: false, issues: ['Guardian returned empty response'], inventedItems: [] };
-    }
-
-    // Clean and parse response
-    let cleanJson = content
-      .replace(/```json\n?|\n?```/g, '')
-      .trim();
-
-    if (!cleanJson.startsWith('{')) {
-      const match = cleanJson.match(/\{[\s\S]*\}/);
-      if (match) cleanJson = match[0];
-    }
-
-    const result = JSON.parse(cleanJson);
-    const validated = validationSchema.parse(result);
-
-    if (!validated.valid) {
-      console.log('🚨 Guardian detected issues:', validated.issues);
-      console.log('🚨 Invented items:', JSON.stringify(validated.inventedItems, null, 2));
-    } else {
-      console.log('✅ Guardian validation passed - No invented content detected');
-    }
-
-    return {
-      valid: validated.valid,
-      issues: validated.issues,
-      inventedItems: validated.inventedItems || []
-    };
-  } catch (error) {
-    console.error('🚨 Guardian validation error (fail-closed):', error);
-    // FAIL-CLOSED: If Guardian fails, reject the CV for safety
-    return {
-      valid: false,
-      issues: ['Guardian validation failed - rejecting for safety'],
-      inventedItems: []
-    };
-  }
 }
 
 // Route to handle PDF upload with optional job URL
@@ -542,41 +382,8 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
 
     const validatedData = cvSchema.parse(parsedData);
 
-    // 4. AI Guardian - Validate CV integrity (strict mode - no auto-correction)
-    const guardianStart = Date.now();
-    console.log('🛡️ [STEP 5] Guardian validation...');
-    const guardianResult = await validateCVIntegrity(textContent, validatedData, openai);
-    timers['5_guardian'] = Date.now() - guardianStart;
-    console.log(`⏱️ Guardian done in ${timers['5_guardian']}ms`);
-
-    if (!guardianResult.valid) {
-      console.log('🚫 Guardian rejected CV - integrity issues detected');
-      console.log('Issues:', guardianResult.issues);
-      console.log('Invented items:', JSON.stringify(guardianResult.inventedItems, null, 2));
-
-      // Determine error type for better UX
-      const isSystemError = guardianResult.issues.some(i =>
-        i.includes('failed') || i.includes('empty response')
-      );
-
-      if (isSystemError) {
-        res.status(500).json({
-          success: false,
-          error: 'VALIDATION_ERROR',
-          message: 'Une erreur est survenue lors de la validation. Veuillez réessayer.',
-        });
-      } else {
-        res.status(400).json({
-          success: false,
-          error: 'CV_INTEGRITY_ISSUE',
-          message: 'Cette offre semble trop éloignée de ton profil actuel. Essaie avec un poste plus proche de tes compétences.',
-          // Don't expose details to user, but log them server-side
-        });
-      }
-      return;
-    }
-
-    console.log('✅ Guardian validation passed');
+    // Guardian validation disabled for hackathon
+    console.log('⏭️ [STEP 5] Guardian validation skipped');
 
     // 5. Compute real stats
     const jobSkills = jobInfo?.skills || [];
