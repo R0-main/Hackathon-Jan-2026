@@ -9,7 +9,7 @@
 ## ✨ Features
 
 - **📄 CV Upload:** Easily upload your existing PDF resume.
-- **🎯 Job Targeting:** Paste a job description or provide a link (LinkedIn, Indeed, Welcome to the Jungle).
+- **🎯 Job Targeting:** Paste a job description or provide a link (LinkedIn, Indeed, Welcome to the Jungle). *Powered by [Lightpanda](https://lightpanda.io/) for efficient job data extraction.*
 - **🤖 AI Optimization:** Our engine analyzes the job requirements and your profile to highlight relevant skills and keywords.
 - **🛡️ Integrity Check:** Ensures the generated CV remains truthful to your actual experience while being optimized.
 - **👀 Live Preview:** Review and validate the changes before downloading your new CV.
@@ -17,6 +17,8 @@
 ## 🤖 MCP Server & ChatGPT App
 
 This project exposes a **Model Context Protocol (MCP) Server**, allowing AI agents to interact directly with our CV optimization engine.
+
+**MCP Server Available:** [https://hackathon-jan-2026-aa1aa065.alpic.live/mcp](https://hackathon-jan-2026-aa1aa065.alpic.live/mcp) (using Alpic)
 
 ### ChatGPT App Integration
 We have a dedicated **ChatGPT App** that leverages this MCP server. This allows you to:
@@ -31,3 +33,7 @@ The MCP server provides tools like:
 ## 🚀 Getting Started
 
 Visit [hackyourcv.fr](https://hackyourcv.fr) to start optimizing your CV today!
+
+---
+
+*Hackathon sponsored by [Alpic](https://alpic.ai/) and [Lightpanda](https://lightpanda.io/)*
