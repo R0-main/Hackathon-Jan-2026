@@ -610,6 +610,24 @@ function App() {
           </div>
         </section>
 
+        {/* Powered By Section */}
+        <section className="powered-section">
+          <div className="powered-container">
+            <span className="powered-label">{t('poweredBy')}</span>
+            <div className="powered-logos">
+              <a href="https://lightpanda.io/" target="_blank" rel="noopener noreferrer" className="powered-logo-card">
+                <img src="/lightpanda-logo.png" alt="Lightpanda" className="powered-logo-img" />
+                <span>Lightpanda</span>
+              </a>
+              <span className="powered-separator">&</span>
+              <a href="https://alpic.ai/" target="_blank" rel="noopener noreferrer" className="powered-logo-card alpic-card">
+                <img src="/alpic-logo.png" alt="Alpic" className="powered-logo-alpic" />
+                <span>Alpic</span>
+              </a>
+            </div>
+          </div>
+        </section>
+
         {/* Footer */}
         <footer className="footer">
           <div className="footer-container">

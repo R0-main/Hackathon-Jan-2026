@@ -114,6 +114,7 @@ const translations = {
 
     // Footer
     madeWithCare: 'Conçu pour les candidats qui méritent d\'être lus.',
+    poweredBy: 'Propulsé par',
 
     // CVFlow - Upload
     step1of5: '1/5',
@@ -297,6 +298,7 @@ const translations = {
 
     // Footer
     madeWithCare: 'Built for candidates who deserve to be read.',
+    poweredBy: 'Powered by',
 
     // CVFlow - Upload
     step1of5: '1/5',
