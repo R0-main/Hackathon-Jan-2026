@@ -191,7 +191,7 @@ IMPORTANT: Reorganize and rephrase this resume to highlight relevant existing sk
     // 2. Send to Blackbox AI
     console.log('🤖 Sending to Blackbox AI for optimization...');
     const completion = await openai.chat.completions.create({
-      model: 'blackboxai/openai/gpt-4o',
+      model: 'blackboxai/openai/gpt-5.1',
       messages: [
         {
           role: 'system',
