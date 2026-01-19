@@ -272,8 +272,88 @@ const WhoIsThisFor = () => {
   );
 };
 
+// ChatGPT Setup Modal Component
+const ChatGPTModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const { t } = useI18n();
+  const mcpUrl = 'https://hackathon-jan-2026-backend.onrender.com/mcp';
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content chatgpt-modal" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>
+          <X size={24} />
+        </button>
+
+        <div className="modal-header">
+          <ChatGPTLogo size={32} />
+          <h2>{t('chatGptModalTitle')}</h2>
+          <span className="modal-requirement">{t('chatGptModalRequirement')}</span>
+        </div>
+
+        <div className="modal-steps">
+          <div className="modal-step">
+            <div className="step-number">1</div>
+            <div className="step-content">
+              <h3>{t('chatGptModalStep1')}</h3>
+              <p>{t('chatGptModalStep1Desc')}</p>
+            </div>
+          </div>
+
+          <div className="modal-step">
+            <div className="step-number">2</div>
+            <div className="step-content">
+              <h3>{t('chatGptModalStep2')}</h3>
+              <p>{t('chatGptModalStep2Desc')}</p>
+            </div>
+          </div>
+
+          <div className="modal-step">
+            <div className="step-number">3</div>
+            <div className="step-content">
+              <h3>{t('chatGptModalStep3')}</h3>
+              <p>{t('chatGptModalStep3Desc')}</p>
+              <div className="config-preview">
+                <div className="config-field">
+                  <span className="config-label">{t('chatGptModalName')}</span>
+                  <code>HackYourCV</code>
+                </div>
+                <div className="config-field">
+                  <span className="config-label">{t('chatGptModalUrl')}</span>
+                  <code className="config-url">{mcpUrl}</code>
+                </div>
+                <div className="config-field">
+                  <span className="config-label">{t('chatGptModalAuth')}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <img src="/chatgpt-setup.png" alt="ChatGPT MCP Setup" className="modal-screenshot" />
+
+        <div className="modal-actions">
+          <a
+            href="https://chatgpt.com/#settings/Connectors"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary modal-btn"
+          >
+            {t('chatGptModalOpenSettings')}
+            <ExternalLink size={16} />
+          </a>
+          <button className="btn-secondary modal-btn" onClick={onClose}>
+            {t('chatGptModalClose')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Integrations Component
-const IntegrationsSection = ({ onStartCV }: { onStartCV: () => void }) => {
+const IntegrationsSection = ({ onStartCV, onOpenChatGPTModal }: { onStartCV: () => void; onOpenChatGPTModal: () => void }) => {
   const { t } = useI18n();
 
   const integrations = [
@@ -291,8 +371,8 @@ const IntegrationsSection = ({ onStartCV }: { onStartCV: () => void }) => {
       title: t('chatGptTitle'),
       description: t('chatGptDesc'),
       cta: t('chatGptCta'),
-      href: 'https://chatgpt.com/g/g-6840639acb788191bf3ebe1f28fec1a7-hackyourcv',
-      isExternal: true,
+      onClick: onOpenChatGPTModal,
+      isExternal: false,
       color: 'integration-gpt'
     },
     {
@@ -376,12 +456,15 @@ const FAQItem = ({ questionKey, answerKey }: { questionKey: string; answerKey: s
 function App() {
   const { t } = useI18n();
   const [showCVFlow, setShowCVFlow] = useState(false);
+  const [showChatGPTModal, setShowChatGPTModal] = useState(false);
 
   if (showCVFlow) {
     return <CVFlow onBack={() => setShowCVFlow(false)} />;
   }
 
   const startCV = () => setShowCVFlow(true);
+  const openChatGPTModal = () => setShowChatGPTModal(true);
+  const closeChatGPTModal = () => setShowChatGPTModal(false);
 
   return (
     <div className="app">
@@ -498,7 +581,10 @@ function App() {
         </section>
 
         {/* Integrations Section */}
-        <IntegrationsSection onStartCV={startCV} />
+        <IntegrationsSection onStartCV={startCV} onOpenChatGPTModal={openChatGPTModal} />
+
+        {/* ChatGPT Setup Modal */}
+        <ChatGPTModal isOpen={showChatGPTModal} onClose={closeChatGPTModal} />
 
         {/* FAQ Section */}
         <section id="faq" className="faq-section">
