@@ -46,9 +46,14 @@ export class ModernATS_CVGenerator {
     private greyColor = '#808080';
 
     // Margins and Dimensions
-    private marginX = 60; // Increased for better breathing room
+    private marginX = 60;
     private marginY = 50;
     private contentWidth = 595.28 - 120; // A4 Width (595.28) - 2*marginX
+
+    // Spacing constants (design system)
+    private spaceSm = 0.3;
+    private spaceMd = 0.6;
+    private spaceLg = 1.0;
 
     constructor(filename?: string) {
         this.filename = filename;
@@ -74,30 +79,36 @@ export class ModernATS_CVGenerator {
         this.addHeader(data.header.name, data.header.title, data.header.contact);
 
         if (data.summary) {
+            this.ensureSpace(80); // Section title + summary text
             this.addSectionTitle("Profil");
-            this.doc.font('Helvetica').fontSize(10.5).text(data.summary, { align: 'justify', lineGap: 2 });
-            this.doc.moveDown(1.5);
+            this.doc.font('Helvetica').fontSize(10.5).text(data.summary, { align: 'left', lineGap: 2 });
+            this.doc.moveDown(this.spaceLg);
         }
 
         if (data.experience && data.experience.length > 0) {
+            this.ensureSpace(100); // Section title + at least one experience header
             this.addSectionTitle("Expérience Professionnelle");
             data.experience.forEach((exp, index) => {
+                this.ensureSpace(80); // Prevent orphan experience titles
                 this.addExperience(exp);
-                if (index < data.experience.length - 1) this.doc.moveDown(1);
+                if (index < data.experience.length - 1) this.doc.moveDown(this.spaceLg);
             });
-            this.doc.moveDown(1);
+            this.doc.moveDown(this.spaceLg);
         }
 
         if (data.education && data.education.length > 0) {
+            this.ensureSpace(80); // Section title + at least one education entry
             this.addSectionTitle("Formation");
             data.education.forEach((edu, index) => {
+                this.ensureSpace(50); // Prevent orphan education titles
                 this.addEducation(edu);
-                if (index < data.education.length - 1) this.doc.moveDown(0.8);
+                if (index < data.education.length - 1) this.doc.moveDown(this.spaceMd);
             });
-            this.doc.moveDown(1);
+            this.doc.moveDown(this.spaceLg);
         }
 
         if (data.skills) {
+            this.ensureSpace(60); // Section title + at least one skill row
             this.addSectionTitle("Compétences");
             this.addSkillsGrid(data.skills);
         }
@@ -107,108 +118,153 @@ export class ModernATS_CVGenerator {
 
     private addHeader(name: string, title: string, contactInfo: string): void {
         this.doc.x = this.marginX;
-        // Name
+
+        // Name - larger, bolder (reduced characterSpacing for ATS compatibility)
         this.doc
             .font('Helvetica-Bold')
-            .fontSize(28)
+            .fontSize(26)
             .fillColor(this.primaryColor)
-            .text(name, { align: 'left' })
-            .moveDown(0.1);
+            .text(name.toUpperCase(), { align: 'left', characterSpacing: 0.8 })
+            .moveDown(0.2);
 
-        // Title
-        this.doc
-            .font('Helvetica-Bold')
-            .fontSize(16)
-            .fillColor(this.accentColor)
-            .text(title, { align: 'left' })
-            .moveDown(0.4);
-
-        // Contact
+        // Title - accent color
         this.doc
             .font('Helvetica')
-            .fontSize(10)
-            .fillColor('black')
-            .text(contactInfo, { align: 'left' })
-            .moveDown(0.8);
+            .fontSize(14)
+            .fillColor(this.accentColor)
+            .text(title, { align: 'left' })
+            .moveDown(this.spaceMd);
 
-        // HR
-        this.drawHR(1.5, '#EEEEEE');
-        this.doc.moveDown(1.2);
+        // Contact - formatted with separators, normalize whitespace
+        const contactFormatted = contactInfo
+            .split(/[,\n]/)
+            .map(s => s.trim().replace(/\s+/g, ' '))
+            .filter(s => s.length > 0)
+            .join('  •  ');
+
+        this.doc
+            .font('Helvetica')
+            .fontSize(9.5)
+            .fillColor('#666666')
+            .text(contactFormatted, {
+                align: 'left',
+                width: this.contentWidth,  // Constrain to content area
+                lineGap: 2                 // Clean spacing if wraps
+            })
+            .moveDown(this.spaceMd);
+
+        // Accent line (thin, colored)
+        this.drawHR(1.2, this.primaryColor);
+        this.doc.moveDown(1);
     }
 
     private addSectionTitle(title: string): void {
         this.doc.x = this.marginX;
-        this.doc.moveDown(0.5);
+        this.doc.moveDown(this.spaceMd);
         this.doc
             .font('Helvetica-Bold')
             .fontSize(13)
             .fillColor(this.primaryColor)
             .text(title.toUpperCase(), { align: 'left', characterSpacing: 1 });
-        
+
         this.drawHR(0.8, this.primaryColor);
-        this.doc.moveDown(0.6);
+        this.doc.moveDown(this.spaceMd);
     }
 
     private addExperience(exp: CVExperience): void {
         this.doc.x = this.marginX;
+        const lineY = this.doc.y;
+        const titleMaxWidth = this.contentWidth * 0.75; // Leave space for dates
 
-        // Title + Dates on same line (simple inline format)
+        // Calculate title height for proper positioning
+        this.doc.font('Helvetica-Bold').fontSize(11);
+        const titleHeight = this.doc.heightOfString(exp.title, { width: titleMaxWidth });
+
+        // Title on left
         this.doc
-            .font('Helvetica-Bold')
-            .fontSize(11.5)
             .fillColor('black')
-            .text(exp.title, { continued: true })
+            .text(exp.title, this.marginX, lineY, { width: titleMaxWidth });
+
+        // Dates on right (same line, aligned right)
+        this.doc
             .font('Helvetica')
             .fontSize(10)
             .fillColor(this.greyColor)
-            .text(`  —  ${exp.dates}`, { align: 'left' });
+            .text(exp.dates, this.marginX, lineY, { width: this.contentWidth, align: 'right' });
 
-        // Company + Location on same line
-        const locationText = exp.location ? `, ${exp.location}` : '';
+        // Reset Y position after the title line (use calculated height)
+        this.doc.y = lineY + Math.max(titleHeight, 14) + 2;
+        this.doc.x = this.marginX;
+
+        // Company + Location
+        const locationText = exp.location ? `  •  ${exp.location}` : '';
         this.doc
-            .font('Helvetica-Oblique')
-            .fontSize(10.5)
+            .font('Helvetica')
+            .fontSize(10)
             .fillColor(this.accentColor)
             .text(`${exp.company}${locationText}`)
-            .moveDown(0.5);
+            .moveDown(this.spaceSm);
 
         // Description
         if (exp.description) {
             this.doc
                 .font('Helvetica')
                 .fontSize(10)
-                .fillColor('black')
-                .text(exp.description, { align: 'justify', lineGap: 1.5 })
-                .moveDown(0.4);
+                .fillColor('#333333')
+                .text(exp.description, { align: 'left', lineGap: 1.5 })
+                .moveDown(this.spaceSm);
         }
 
-        // Tasks
+        // Tasks with proper bullet alignment
         if (exp.tasks && exp.tasks.length > 0) {
+            const bulletX = this.marginX + 8;
+            const textX = this.marginX + 20;
+            const textWidth = this.contentWidth - 20;
+
             exp.tasks.forEach(task => {
+                const taskY = this.doc.y;
+                // Bullet point
+                this.doc
+                    .fontSize(10)
+                    .fillColor(this.accentColor)
+                    .text('•', bulletX, taskY, { continued: false });
+                // Task text
                 this.doc
                     .fontSize(9.5)
-                    .text('• ' + task, { indent: 12, align: 'justify', lineGap: 1 });
+                    .fillColor('#444444')
+                    .text(task, textX, taskY, { width: textWidth, align: 'left', lineGap: 1 });
             });
         }
     }
 
     private addEducation(edu: CVEducation): void {
         this.doc.x = this.marginX;
+        const lineY = this.doc.y;
+        const degreeMaxWidth = this.contentWidth * 0.75; // Leave space for year
 
-        // Degree + Year on same line (simple inline format)
+        // Calculate degree height for proper positioning
+        this.doc.font('Helvetica-Bold').fontSize(11);
+        const degreeHeight = this.doc.heightOfString(edu.degree, { width: degreeMaxWidth });
+
+        // Degree on left
         this.doc
-            .font('Helvetica-Bold')
-            .fontSize(11)
             .fillColor('black')
-            .text(edu.degree, { continued: true })
+            .text(edu.degree, this.marginX, lineY, { width: degreeMaxWidth });
+
+        // Year on right (same line, aligned right)
+        this.doc
             .font('Helvetica')
             .fontSize(10)
             .fillColor(this.greyColor)
-            .text(`  —  ${edu.year}`, { align: 'left' });
+            .text(edu.year, this.marginX, lineY, { width: this.contentWidth, align: 'right' });
+
+        // Reset Y position (use calculated height)
+        this.doc.y = lineY + Math.max(degreeHeight, 14) + 2;
+        this.doc.x = this.marginX;
 
         // School
         this.doc
-            .font('Helvetica-Oblique')
+            .font('Helvetica')
             .fontSize(10)
             .fillColor(this.accentColor)
             .text(edu.school);
@@ -216,12 +272,46 @@ export class ModernATS_CVGenerator {
 
     private addSkillsGrid(categories: Record<string, string[]>): void {
         this.doc.x = this.marginX;
-        this.doc.font('Helvetica').fontSize(10).fillColor('black');
-        
-        for (const [category, items] of Object.entries(categories)) {
-            this.doc.font('Helvetica-Bold').text(`${category}: `, { continued: true });
-            this.doc.font('Helvetica').text(items.join(', '), { lineGap: 2 });
-        }
+        const labelWidth = 130; // Fixed width for category labels (fits ~12 chars)
+        const skillsWidth = this.contentWidth - labelWidth - 10;
+
+        // Sort categories in canonical order for consistent rendering
+        const categoryOrder = ['Langages', 'Frameworks', 'Outils', 'Langues', 'Autres'];
+        const entries = Object.entries(categories).sort(([a], [b]) => {
+            const indexA = categoryOrder.indexOf(a);
+            const indexB = categoryOrder.indexOf(b);
+            // Unknown categories go last, in original order
+            if (indexA === -1 && indexB === -1) return 0;
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+        });
+        entries.forEach(([category, items], index) => {
+            const rowY = this.doc.y;
+
+            // Category name (fixed width column)
+            this.doc
+                .font('Helvetica-Bold')
+                .fontSize(10)
+                .fillColor(this.primaryColor)
+                .text(category, this.marginX, rowY, { width: labelWidth });
+
+            // Skills (aligned after label, wraps properly)
+            this.doc
+                .font('Helvetica')
+                .fontSize(10)
+                .fillColor('#444444')
+                .text(items.join('  •  '), this.marginX + labelWidth, rowY, {
+                    width: skillsWidth,
+                    align: 'left',
+                    lineGap: 2
+                });
+
+            // Add spacing between categories (except last)
+            if (index < entries.length - 1) {
+                this.doc.moveDown(this.spaceMd);
+            }
+        });
     }
 
     private build(): Promise<Buffer> {
@@ -258,7 +348,21 @@ export class ModernATS_CVGenerator {
             .strokeColor(color)
             .stroke()
             .restore();
-        
-        this.doc.y = y + 5; 
+
+        this.doc.y = y + 5;
+    }
+
+    /**
+     * Ensures there's enough space on the current page.
+     * If not, adds a new page to prevent orphan titles/content.
+     */
+    private ensureSpace(minHeight: number): void {
+        const page = this.doc.page;
+        const remainingSpace = page.height - page.margins.bottom - this.doc.y;
+        if (remainingSpace < minHeight) {
+            this.doc.addPage();
+            this.doc.y = page.margins.top;
+            this.doc.x = this.marginX;
+        }
     }
 }

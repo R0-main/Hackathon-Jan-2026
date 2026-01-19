@@ -94,11 +94,16 @@ function computeStats(
   };
 }
 
-// Schema for validation response
+// Schema for validation response with evidence-based format
 const validationSchema = z.object({
   valid: z.boolean(),
-  issues: z.array(z.string()),
-  inventedItems: z.array(z.string()).optional(),
+  issues: z.array(z.string()).default([]),
+  inventedItems: z.array(z.object({
+    path: z.string(),
+    value: z.string(),
+    evidenceType: z.enum(['QUOTE', 'NOT_FOUND']),
+    evidence: z.string(), // Verbatim quote from original CV, or "NOT FOUND"
+  })).default([]),
 });
 
 // AI Guardian: Validates that the optimized CV doesn't contain invented information
@@ -106,10 +111,10 @@ async function validateCVIntegrity(
   originalText: string,
   optimizedData: z.infer<typeof cvSchema>,
   openaiClient: OpenAI
-): Promise<{ valid: boolean; issues: string[]; inventedItems: string[] }> {
+): Promise<{ valid: boolean; issues: string[]; inventedItems: Array<{ path: string; value: string; evidenceType: 'QUOTE' | 'NOT_FOUND'; evidence: string }> }> {
   console.log('🛡️ Running AI Guardian validation...');
 
-  const validationPrompt = `Tu es un VALIDATEUR INTELLIGENT de CV. Ton rôle est de détecter les VRAIES INVENTIONS (mensonges) tout en acceptant les reformulations légitimes.
+  const validationPrompt = `Tu es un VALIDATEUR de CV optimisé. Tu dois distinguer les FAITS (strict) des éléments de STYLE/PERSONNALISATION (tolérant).
 
 ═══════════════════════════════════════════════════════════════
 CV ORIGINAL
@@ -122,68 +127,79 @@ CV OPTIMISÉ (à valider)
 ${JSON.stringify(optimizedData, null, 2)}
 
 ═══════════════════════════════════════════════════════════════
-🚨 VIOLATIONS GRAVES (REJETER SI PRÉSENT)
+🔴 FACTS - ÊTRE STRICT (rejeter si inventé)
 ═══════════════════════════════════════════════════════════════
-❌ Entreprises inventées qui n'existent pas dans l'original
-❌ Diplômes ou certifications inventés
-❌ Métriques chiffrées inventées (%, €, "augmenté de X%")
-❌ Expériences professionnelles complètement fabriquées
-❌ Compétences techniques majeures non démontrables depuis l'original
-   (ex: si le CV ne mentionne jamais Python, ne pas ajouter "Expert Python")
+Ces éléments DANS LES EXPÉRIENCES/ÉDUCATION doivent être vérifiables:
+- Noms d'entreprises passées (dans experience[].company)
+- Titres de poste passés (dans experience[].title)
+- Dates et durées d'emploi
+- Diplômes, certifications, formations
+- Métriques chiffrées inventées (%, €, "augmenté de X%")
+- Technologies/compétences NON présentes dans l'original
+- Projets ou missions spécifiques inventés
 
-═══════════════════════════════════════════════════════════════
-✅ REFORMULATIONS ACCEPTABLES (NE PAS REJETER)
-═══════════════════════════════════════════════════════════════
-Ces éléments sont des CLARIFICATIONS LÉGITIMES, pas des inventions:
-
-1. NIVEAUX DE LANGUE IMPLICITES:
-   - Lycée/études en France → "Français (langue maternelle)" = OK
-   - École française + pas d'indication contraire → Français natif = OK
-   - Contexte professionnel en anglais mentionné → "Anglais professionnel" = OK
-
-2. NIVEAUX DE COMPÉTENCE RAISONNABLES:
-   - Plusieurs années d'expérience avec une techno → "solides bases", "maîtrise" = OK
-   - Formation + projets dans un domaine → "compétences en X" = OK
-   - Stage/alternance → "expérience en" = OK
-
-3. TITRES DE POSTE DESCRIPTIFS:
-   - Activité freelance → "Développeur Freelance" ou "Mission Indépendante" = OK
-   - Projets personnels décrits → "Projet Personnel" = OK
-   - Travail non-salarié décrit → titre générique descriptif = OK
-
-4. REFORMULATIONS STYLISTIQUES:
-   - "j'ai fait des mods" → "Développement d'extensions" = OK
-   - "j'ai codé" → "Conception et développement" = OK
-   - Réorganisation de l'ordre des expériences = OK
-   - Regroupement de compétences par catégories = OK
-
-5. INFÉRENCES TECHNIQUES LOGIQUES:
-   - TypeScript mentionné → JavaScript implicite = OK
-   - React mentionné → JavaScript/HTML/CSS implicites = OK
-   - Développement backend mentionné → bases de données implicites = OK
+⚠️ VIOLATION = inventer une expérience, entreprise, diplôme, ou métrique
 
 ═══════════════════════════════════════════════════════════════
-PROCESSUS DE DÉCISION
+🟢 STYLE/PERSONNALISATION - TOUJOURS ACCEPTER (JAMAIS REJETER)
 ═══════════════════════════════════════════════════════════════
-Pour chaque élément du CV optimisé, demande-toi:
-1. Est-ce une INVENTION PURE (aucune base dans l'original) ? → VIOLATION
-2. Est-ce une CLARIFICATION d'information implicite ? → ACCEPTABLE
-3. Est-ce une REFORMULATION professionnelle ? → ACCEPTABLE
-4. Est-ce une INFÉRENCE LOGIQUE raisonnable ? → ACCEPTABLE
+Ces éléments sont des adaptations LÉGITIMES au poste visé:
 
-En cas de doute sur une reformulation, ACCEPTE-LA si elle est raisonnable.
-Sois STRICT sur les inventions pures, TOLÉRANT sur les reformulations.
+✅ header.title → C'est le TITRE ACTUEL/VISÉ du candidat, PAS un poste passé!
+   - PEUT être "Consultant Junior en Cybersécurité" même si ce n'était pas dans l'original
+   - PEUT être "Développeur Fullstack" même si l'original disait "Développeur"
+   - PEUT être adapté au poste visé → JAMAIS une violation
+   - ⚠️ NE PAS CONFONDRE avec experience[].title qui sont les postes PASSÉS
+
+✅ summary → Peut mentionner:
+   - L'entreprise cible
+   - Le poste visé
+   - Des compétences SI elles existent dans le CV original
+   - Des termes du secteur (logiciels embarqués, IA, cloud) SI liés aux skills existants
+
+✅ Verbes d'action et reformulations professionnelles
+✅ Ordre des expériences/skills réorganisé
+✅ Regroupement par catégories
 
 ═══════════════════════════════════════════════════════════════
-FORMAT DE RÉPONSE (JSON UNIQUEMENT)
+✅ IMPLICATIONS TECHNIQUES AUTORISÉES
+═══════════════════════════════════════════════════════════════
+- C/C++ → logiciels embarqués, systèmes OK
+- TypeScript → JavaScript OK
+- React/Vue/Angular → JavaScript, HTML, CSS OK
+- Node.js → JavaScript, Backend OK
+- Python → scripting, automatisation OK
+
+═══════════════════════════════════════════════════════════════
+⚠️ CE QUI N'EST PAS UNE VIOLATION
+═══════════════════════════════════════════════════════════════
+- header.title adapté au poste → OK
+- summary qui mentionne l'entreprise cible → OK
+- summary qui reformule les compétences existantes → OK
+- Termes du domaine (embedded, cloud, etc.) SI skills de base présents → OK
+
+═══════════════════════════════════════════════════════════════
+FORMAT DE RÉPONSE
 ═══════════════════════════════════════════════════════════════
 {
   "valid": true/false,
-  "issues": ["description de chaque VRAIE violation trouvée"],
-  "inventedItems": ["élément inventé 1", "élément inventé 2"]
+  "issues": ["description courte de chaque VRAIE violation"],
+  "inventedItems": [
+    {
+      "path": "experience[0].company",
+      "value": "Acme Corp",
+      "evidenceType": "NOT_FOUND",
+      "evidence": "NOT FOUND"
+    }
+  ]
 }
 
-Si tout est légitime: {"valid": true, "issues": [], "inventedItems": []}`;
+RAPPEL CRITIQUE:
+- header.title = titre ACTUEL/VISÉ → JAMAIS une violation, même s'il est différent de l'original
+- summary personnalisé → JAMAIS une violation
+- Seuls les FAITS inventés (expériences passées, entreprises, diplômes, métriques) sont des violations
+
+Si tout est OK: {"valid": true, "issues": [], "inventedItems": []}`;
 
   try {
     const validation = await openaiClient.chat.completions.create({
@@ -196,8 +212,8 @@ Si tout est légitime: {"valid": true, "issues": [], "inventedItems": []}`;
 
     const content = validation.choices[0].message.content;
     if (!content) {
-      console.log('⚠️ Guardian returned empty response, assuming valid');
-      return { valid: true, issues: [], inventedItems: [] };
+      console.log('🚨 Guardian returned empty response (fail-closed)');
+      return { valid: false, issues: ['Guardian returned empty response'], inventedItems: [] };
     }
 
     // Clean and parse response
@@ -215,7 +231,7 @@ Si tout est légitime: {"valid": true, "issues": [], "inventedItems": []}`;
 
     if (!validated.valid) {
       console.log('🚨 Guardian detected issues:', validated.issues);
-      console.log('🚨 Invented items:', validated.inventedItems);
+      console.log('🚨 Invented items:', JSON.stringify(validated.inventedItems, null, 2));
     } else {
       console.log('✅ Guardian validation passed - No invented content detected');
     }
@@ -226,9 +242,13 @@ Si tout est légitime: {"valid": true, "issues": [], "inventedItems": []}`;
       inventedItems: validated.inventedItems || []
     };
   } catch (error) {
-    console.error('⚠️ Guardian validation error:', error);
-    // On error, we allow the CV through but log the issue
-    return { valid: true, issues: ['Validation check could not be completed'], inventedItems: [] };
+    console.error('🚨 Guardian validation error (fail-closed):', error);
+    // FAIL-CLOSED: If Guardian fails, reject the CV for safety
+    return {
+      valid: false,
+      issues: ['Guardian validation failed - rejecting for safety'],
+      inventedItems: []
+    };
   }
 }
 
@@ -337,59 +357,90 @@ IMPORTANT: Reorganize and rephrase this resume to highlight relevant existing sk
           role: 'system',
           content: `You are an EXPERT CV optimizer. Your ONLY task is to return a valid JSON object - nothing else.
 
-DO NOT write explanations, descriptions, or any other text.
-DO NOT use markdown code blocks (\n)
-DO NOT add preambles or postambles.
-ONLY return the raw JSON object.
+Return valid JSON starting with {. Do not wrap in markdown code blocks. No explanations, no preambles.
 
 ${jobDescription ? `
-🎯 OBJECTIF: Optimiser ce CV pour l'offre d'emploi fournie.
+🎯 OBJECTIF: Créer un CV UNIQUE et PERSONNALISÉ pour cette offre spécifique.
 
 ═══════════════════════════════════════════════════════════════
-RÈGLES ABSOLUES - INTERDICTIONS STRICTES
+⚡ PERSONNALISATION OBLIGATOIRE - CHAQUE CV DOIT ÊTRE DIFFÉRENT
 ═══════════════════════════════════════════════════════════════
-❌ JAMAIS inventer des entreprises, postes ou missions qui n'existent pas
-❌ JAMAIS ajouter de métriques chiffrées (%, €, nombres) non présentes
-❌ JAMAIS inventer des certifications ou diplômes
-❌ JAMAIS créer de titres de poste formels pour des activités informelles
-   (si l'original dit "j'ai développé des mods", ne pas mettre "Développeur Mods Senior")
+
+0️⃣ HEADER - PRÉSERVER LES COORDONNÉES COMPLÈTES
+⚠️ CRITIQUE: Le champ "contact" doit contenir TOUTES les informations de contact du CV original:
+- Email (OBLIGATOIRE si présent)
+- Téléphone (OBLIGATOIRE si présent)
+- LinkedIn (si présent)
+- Adresse/Ville (si présente)
+- GitHub/Portfolio (si présent)
+Format: séparer par virgule ou retour ligne. Ex: "email@exemple.com, +33 6 12 34 56 78, Paris, linkedin.com/in/nom"
+
+1️⃣ SUMMARY (SECTION LA PLUS IMPORTANTE)
+Le summary DOIT être personnalisé mais BASÉ SUR LE CV ORIGINAL:
+- Mentionner le type de poste visé et l'entreprise cible
+- Mettre en avant les 2-3 compétences QUI EXISTENT DANS LE CV ORIGINAL et sont pertinentes pour cette offre
+- ⚠️ NE PAS inventer de compétences ou termes techniques absents du CV original
+- ⚠️ NE PAS ajouter "logiciels embarqués", "architectures matérielles", etc. sauf si EXPLICITEMENT dans le CV
+- Ce summary doit être personnalisé mais HONNÊTE - ne mentionner que ce que le candidat sait vraiment faire
+
+2️⃣ EXPÉRIENCES - ORDRE PAR PERTINENCE
+- Réordonner les expériences: la PLUS PERTINENTE pour ce poste en PREMIER
+- Pour chaque expérience, reformuler les tâches en mettant l'accent sur ce qui matche avec l'offre
+- Si une expérience n'a aucun lien avec le poste → la mettre en dernier ou la résumer brièvement
+
+3️⃣ SKILLS - FILTRAGE ET PRIORISATION
+- ⚠️ UTILISER UNIQUEMENT CES NOMS DE CATÉGORIES COURTS (max 12 caractères):
+  • "Langages" (pour les langages de programmation)
+  • "Frameworks" (pour les frameworks/librairies)
+  • "Outils" (pour les outils: Git, Docker, AWS, etc.)
+  • "Langues" (pour les langues parlées: Français, Anglais, etc.)
+  • "Autres" (pour tout le reste si nécessaire)
+- Lister EN PREMIER les skills qui apparaissent dans l'offre
+- Les skills non pertinents peuvent être omis
+
+4️⃣ ADAPTATION DU VOCABULAIRE
+- Utiliser les MÊMES TERMES que l'offre d'emploi
+- Adapter le niveau de formalité au secteur (startup vs grand groupe)
 
 ═══════════════════════════════════════════════════════════════
-CE QUE TU PEUX FAIRE (REFORMULATIONS AUTORISÉES)
+🚫 INTERDICTIONS STRICTES (FACTS - ne jamais inventer)
 ═══════════════════════════════════════════════════════════════
-✅ RÉORGANISER: Mettre les expériences les plus pertinentes en premier
-✅ VERBES D'ACTION: Remplacer "j'ai fait" par "Développé", "Conçu", "Mis en œuvre"
-✅ SYNONYMES PROFESSIONNELS: "mods" → "extensions logicielles", "scripts" → "automatisations"
-✅ CLARIFIER les compétences implicites:
-   - Si quelqu'un a fait du dev TypeScript → il connaît JavaScript
-   - Si quelqu'un a un lycée français → Français langue maternelle est OK
-   - Si quelqu'un code depuis X années → "solides bases" ou "maîtrise" sont OK
-✅ STRUCTURER: Regrouper les compétences par catégorie logique
-✅ ADAPTER LE VOCABULAIRE au secteur visé (utiliser les termes de l'offre quand applicable)
+❌ JAMAIS inventer des entreprises, postes ou missions qui n'existent pas dans l'original
+❌ JAMAIS ajouter de métriques chiffrées (%, €, nombres, "augmenté de X%") non présentes
+❌ JAMAIS inventer des certifications, diplômes ou formations
+❌ JAMAIS ajouter une compétence technique si elle n'est pas dans le CV original OU une implication directe (voir liste ci-dessous)
 
 ═══════════════════════════════════════════════════════════════
-RÈGLES POUR LES TITRES DE POSTE
+✅ REFORMULATIONS AUTORISÉES (STYLE)
 ═══════════════════════════════════════════════════════════════
-- Si l'original a un titre formel → le garder ou l'améliorer légèrement
-- Si l'original décrit une activité freelance/perso → utiliser un titre descriptif simple:
-  "Développeur Freelance", "Projet Personnel", "Mission Indépendante"
-- NE PAS inventer de titres pompeux ou de niveaux (Senior, Lead, Expert) non justifiés
+✅ RÉORGANISER l'ordre des expériences et skills
+✅ VERBES D'ACTION: "j'ai fait" → "Développé", "Conçu", "Mis en œuvre"
+✅ SYNONYMES PROFESSIONNELS: "mods" → "extensions logicielles"
+✅ TITRES DESCRIPTIFS pour activités informelles: freelance → "Développeur Freelance", projets perso → "Projet Personnel"
+✅ FUSIONNER des expériences similaires en une seule
 
 ═══════════════════════════════════════════════════════════════
-RÈGLES POUR ÉVITER LES DOUBLONS D'EXPÉRIENCES
+✅ IMPLICATIONS TECHNIQUES AUTORISÉES (liste exhaustive)
 ═══════════════════════════════════════════════════════════════
-⚠️ IMPORTANT: Si plusieurs expériences sont très similaires (même période, même type d'activité):
-- FUSIONNER en une seule expérience avec un titre englobant
-- OU différencier clairement avec des descriptions DISTINCTES (technologies différentes, contextes différents)
-- JAMAIS avoir 2 expériences avec des descriptions quasi-identiques
-- Exemple: "Freelance pour PixelPoly" + "Freelance pour clients" sur la même période
-  → Fusionner en "Développeur Freelance (2023-2024)" avec les différents clients/missions en sous-points
+Tu peux UNIQUEMENT ajouter ces skills si leur "source" est présente dans le CV:
+- TypeScript → JavaScript (OK)
+- React/Vue/Angular → JavaScript, HTML, CSS (OK)
+- Node.js → JavaScript (OK)
+- Études en France → Français langue maternelle (OK)
+- Contexte pro anglais mentionné → Anglais professionnel (OK)
+
+⚠️ INTERDICTIONS SPÉCIFIQUES:
+- C/C++ seul NE PERMET PAS d'ajouter "logiciels embarqués", "systèmes embarqués", "architectures matérielles"
+- Sauf si le CV mentionne explicitement du travail embedded/IoT/hardware
+
+⚠️ TOUT AUTRE AJOUT DE SKILL EST INTERDIT si non présent explicitement.
 
 ═══════════════════════════════════════════════════════════════
 CONTEXTE DE L'OFFRE
 ═══════════════════════════════════════════════════════════════
 Poste visé: ${jobInfo?.title || 'le poste'}
-Mots-clés à mettre en valeur si présents dans le CV: ${jobInfo?.skills.join(', ') || 'compétences techniques'}
+Entreprise: ${jobInfo?.company || 'non spécifiée'}
+Mots-clés PRIORITAIRES (à mettre en valeur SI LE CANDIDAT LES POSSÈDE): ${jobInfo?.skills.join(', ') || 'compétences techniques'}
 ` : `
 Optimise ce CV pour les systèmes ATS:
 - Utilise un langage professionnel et des verbes d'action
@@ -402,9 +453,9 @@ REQUIRED JSON FORMAT (return ONLY this, no other text):
 
 {
   "header": {
-    "name": "string",
-    "title": "string",
-    "contact": "string"
+    "name": "Prénom Nom",
+    "title": "Titre adapté au poste",
+    "contact": "email@exemple.com, +33 6 12 34 56 78, Paris, linkedin.com/in/nom"
   },
   "summary": "string (2-3 sentences)",
   "experience": [
@@ -425,8 +476,10 @@ REQUIRED JSON FORMAT (return ONLY this, no other text):
     }
   ],
   "skills": {
-    "Category1": ["skill1", "skill2"],
-    "Category2": ["skill3", "skill4"]
+    "Langages": ["JavaScript", "Python"],
+    "Frameworks": ["React", "Node.js"],
+    "Outils": ["Git", "Docker"],
+    "Langues": ["Français", "Anglais"]
   }
 }
 
@@ -437,7 +490,7 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
           content: userMessageContent,
         },
       ],
-      temperature: 0.1,
+      temperature: 0.15, // Low for reliability, variety comes from instructions
     });
 
     const aiContent = completion.choices[0].message.content;
@@ -489,15 +542,29 @@ CRITICAL REMINDER: Return ONLY the JSON object. No markdown. No explanations. Ju
     console.log(`⏱️ Guardian done in ${timers['5_guardian']}ms`);
 
     if (!guardianResult.valid) {
-      console.log('🚫 Guardian rejected CV - mismatch between CV and job offer');
+      console.log('🚫 Guardian rejected CV - integrity issues detected');
       console.log('Issues:', guardianResult.issues);
+      console.log('Invented items:', JSON.stringify(guardianResult.inventedItems, null, 2));
 
-      res.status(400).json({
-        success: false,
-        error: 'CV_JOB_MISMATCH',
-        message: 'L\'offre d\'emploi semble trop eloignee de votre profil actuel pour une optimisation pertinente.',
-        suggestion: 'Veuillez essayer avec une offre plus proche de vos competences, ou mettre a jour votre CV avec des experiences pertinentes.',
-      });
+      // Determine error type for better UX
+      const isSystemError = guardianResult.issues.some(i =>
+        i.includes('failed') || i.includes('empty response')
+      );
+
+      if (isSystemError) {
+        res.status(500).json({
+          success: false,
+          error: 'VALIDATION_ERROR',
+          message: 'Une erreur est survenue lors de la validation. Veuillez réessayer.',
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: 'CV_INTEGRITY_ISSUE',
+          message: 'Cette offre semble trop éloignée de ton profil actuel. Essaie avec un poste plus proche de tes compétences.',
+          // Don't expose details to user, but log them server-side
+        });
+      }
       return;
     }
 

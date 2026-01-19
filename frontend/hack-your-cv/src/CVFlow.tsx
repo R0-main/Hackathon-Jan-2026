@@ -683,6 +683,20 @@ export default function CVFlow({ onBack }: CVFlowProps) {
           return;
         }
 
+        // Handle CV integrity issues (Guardian rejection) - redirect to upload
+        if (errorData.error === 'CV_INTEGRITY_ISSUE') {
+          setError(errorData.message || t('errorIntegrity'));
+          setStep('upload');
+          return;
+        }
+
+        // Handle validation errors (500) - stay on job-offer to retry
+        if (errorData.error === 'VALIDATION_ERROR') {
+          setError(errorData.message || t('errorRetry'));
+          setStep('job-offer');
+          return;
+        }
+
         throw new Error(errorData.message || errorData.error || `Error ${response.status}`);
       }
 

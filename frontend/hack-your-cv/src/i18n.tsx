@@ -170,6 +170,8 @@ const translations = {
     // Errors
     errorUnknown: 'Erreur inconnue',
     errorBackendDown: 'Impossible de générer le CV. Vérifie que le service est disponible.',
+    errorIntegrity: 'Cette offre semble trop éloignée de ton profil actuel. Essaie avec un poste plus proche de tes compétences.',
+    errorRetry: 'Une erreur est survenue. Réessaie dans quelques instants.',
   },
   en: {
     // Header
@@ -338,6 +340,8 @@ const translations = {
     // Errors
     errorUnknown: 'Unknown error',
     errorBackendDown: 'Unable to generate CV. Please check if the service is available.',
+    errorIntegrity: 'This job seems too far from your current profile. Try with a position closer to your skills.',
+    errorRetry: 'An error occurred. Please try again in a moment.',
   },
 } as const;
 
