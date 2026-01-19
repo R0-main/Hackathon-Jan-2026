@@ -436,6 +436,14 @@ Tu peux UNIQUEMENT ajouter ces skills si leur "source" est présente dans le CV:
 ⚠️ TOUT AUTRE AJOUT DE SKILL EST INTERDIT si non présent explicitement.
 
 ═══════════════════════════════════════════════════════════════
+🌐 LANGUE DU CV - RÈGLE CRITIQUE
+═══════════════════════════════════════════════════════════════
+Le CV optimisé DOIT être rédigé dans la MÊME LANGUE que le CV original:
+- CV original en français → CV optimisé en français (même si l'offre est en anglais)
+- CV original en anglais → CV optimisé en anglais (même si l'offre est en français)
+⚠️ NE JAMAIS mélanger les langues. La langue de l'offre ne change PAS la langue du CV.
+
+═══════════════════════════════════════════════════════════════
 CONTEXTE DE L'OFFRE
 ═══════════════════════════════════════════════════════════════
 Poste visé: ${jobInfo?.title || 'le poste'}

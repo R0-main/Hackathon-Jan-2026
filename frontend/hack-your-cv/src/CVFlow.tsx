@@ -279,14 +279,20 @@ const JobOfferStep = ({
       <div className="input-mode-toggle">
         <button
           className={`mode-btn ${inputMode === 'url' ? 'mode-btn-active' : ''}`}
-          onClick={() => setInputMode('url')}
+          onClick={() => {
+            setInputMode('url');
+            setJobOffer(''); // Clear text when switching to URL mode
+          }}
         >
           <Link size={18} />
           {t('jobUrl')}
         </button>
         <button
           className={`mode-btn ${inputMode === 'text' ? 'mode-btn-active' : ''}`}
-          onClick={() => setInputMode('text')}
+          onClick={() => {
+            setInputMode('text');
+            setJobUrl(''); // Clear URL when switching to text mode
+          }}
         >
           <FileText size={18} />
           {t('jobText')}
